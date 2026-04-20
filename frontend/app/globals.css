@@ -1,16 +1,140 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.text-gradient-login {
+  background: linear-gradient(to bottom right, #E3EF26 0%, #076653 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Generate AI gradient text ──────────────────────────── */
+.text-gradient-ai {
+  background: linear-gradient(to bottom right, #E3EF26 0%, #076653 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 600;
+}
+
+/* ── Save Draft button ───────────────────────────────────── */
+.btn-save-draft {
+  background-image: linear-gradient(to right, #c8e84a 0%, #f6fabc 50%, #c8e84a 100%);
+  background-size: 200% auto;
+  background-position: left center;
+  color: #2d3a00;
+  font-weight: 600;
+  transition: background-position 0.4s ease, box-shadow 0.3s ease;
+}
+
+.btn-save-draft:hover:not(:disabled) {
+  background-position: right center;
+  box-shadow: 0 4px 18px rgba(200, 232, 74, 0.5);
+}
+
+/* ── Upload Product button ───────────────────────────────── */
+.btn-upload-product {
+  background-image: linear-gradient(to right, #666c11 0%, #888e1a 50%, #666c11 100%);
+  background-size: 200% auto;
+  background-position: left center;
+  color: #f6fabc;
+  font-weight: 600;
+  transition: background-position 0.4s ease, box-shadow 0.3s ease;
+}
+
+.btn-upload-product:hover:not(:disabled) {
+  background-position: right center;
+  box-shadow: 0 4px 18px rgba(102, 108, 17, 0.45);
+}
+
+/* ── AI shimmer loading animation ───────────────────────── */
+@keyframes shimmer-ai {
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.ai-loading {
+  background: linear-gradient(90deg, #e8f5c8 0%, #c8e84a 40%, #e8f5c8 60%, #e8f5c8 100%);
+  background-size: 200% 100%;
+  animation: shimmer-ai 1.4s ease-in-out infinite;
+  color: transparent !important;
+  border-color: transparent !important;
+  border-radius: 0.75rem;
+}
+
+/* ── Gradient text untuk "Generate AI" label ── */
+.text-gradient-ai {
+  background: linear-gradient(to right, #666c11 0%, #c8d44a 50%, #f6fabc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Save Draft button: warna muted olive ── */
+.btn-save-draft {
+  background: #666c11;
+  color: #2d3a00;
+  transition: all 0.4s ease;
+  background-size: 200% auto;
+  background-image: linear-gradient(to right, #c8e84a 0%, #f6fabc 50%, #c8e84a 100%);
+}
+
+.btn-save-draft:hover {
+  background-position: right center;
+  box-shadow: 0 4px 15px rgba(102, 108, 17, 0.4);
+}
+
+/* ── Upload Product button: bright lime pop ── */
+.btn-upload-product {
+  background-image: linear-gradient(to right, #666c11 0%, #888e1a 50%, #666c11 100%);
+  background-size: 200% auto;
+  color: #f6fabc;
+  font-weight: 600;
+  transition: all 0.4s ease;
+}
+
+.btn-upload-product:hover {
+  background-position: right center;
+  box-shadow: 0 4px 15px rgba(246, 250, 188, 0.5);
+}
+
+/* ── Shimmer loading animation untuk AI state ── */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.ai-loading {
+  background: linear-gradient(90deg, #e8f5c8 25%, #c8e84a 50%, #e8f5c8 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
 @media (prefers-color-scheme: dark) {
   :root {
@@ -20,7 +144,40 @@
 }
 
 body {
-  background: var(--background);
+  background: #ffffff;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* globals.css */
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.slide-from-right {
+  animation: slideInFromRight 0.35s ease-out forwards;
+}
+
+.slide-from-left {
+  animation: slideInFromLeft 0.35s ease-out forwards;
 }
