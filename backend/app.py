@@ -9,12 +9,8 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app,
-     origins=[
-         "http://localhost:3000",
-         "https://plate-up-project.vercel.app", 
-         "https://plateup-project-production.up.railway.app"
-     ],
-     supports_credentials=True,
+     origins="*",
+     supports_credentials=False,
      methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
      allow_headers=["Content-Type", "Authorization"]
 )
