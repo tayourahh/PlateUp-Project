@@ -11,7 +11,8 @@ app = Flask(__name__)
 CORS(app,
      origins=[
          "http://localhost:3000",
-         "https://plate-up-project.vercel.app"
+         "https://plate-up-project.vercel.app", 
+         "https://plateup-project-production.up.railway.app"
      ],
      supports_credentials=True,
      methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
