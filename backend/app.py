@@ -1,11 +1,13 @@
 # backend/app.py
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+print(f"[DEBUG] SUPABASE_URL exists: {bool(os.environ.get('SUPABASE_URL'))}")
+print(f"[DEBUG] SUPABASE_KEY exists: {bool(os.environ.get('SUPABASE_SERVICE_KEY'))}")
 
 app = Flask(__name__)
 
@@ -25,13 +27,12 @@ def handle_preflight():
         response.status_code = 200
         return response
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+supabase: Client = create_client(
+    os.environ.get("SUPABASE_URL"),
+    os.environ.get("SUPABASE_SERVICE_KEY")
+)
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    print("[ERROR] Missing SUPABASE_URL or SUPABASE_SERVICE_KEY!")
-    
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+print("[DEBUG] Supabase client created successfully")
 
 def get_current_user():
     auth_header = request.headers.get('Authorization', '')
@@ -72,20 +73,20 @@ def update_profile(user):
         .update(update_data).eq('id', user.id).execute()
     return jsonify(result.data)
 
-# Debug import surplus
 try:
     from routes.surplus import register_surplus_routes
     register_surplus_routes(app, supabase, require_auth)
-    print("[OK] Surplus routes registered successfully")
+    print("[OK] Surplus routes registered")
 except Exception as e:
     import traceback
-    print(f"[ERROR] Failed to import surplus routes: {type(e).__name__}: {e}")
+    print(f"[ERROR] Surplus import failed: {type(e).__name__}: {e}")
     traceback.print_exc()
 
-# Health check endpoint
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'ok', 'message': 'Flask is running'}), 200
+    return jsonify({'status': 'ok'}), 200
+
+print("[DEBUG] App fully loaded, ready to serve")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
