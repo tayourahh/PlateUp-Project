@@ -9,8 +9,6 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Pakai after_request untuk manual set CORS headers
-# Lebih reliable daripada flask-cors untuk Authorization header
 @app.after_request
 def add_cors_headers(response):
     origin = request.headers.get('Origin', '*')
@@ -20,7 +18,6 @@ def add_cors_headers(response):
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     return response
 
-# Handle preflight OPTIONS request untuk semua route
 @app.before_request
 def handle_preflight():
     if request.method == 'OPTIONS':
@@ -72,8 +69,20 @@ def update_profile(user):
         .update(update_data).eq('id', user.id).execute()
     return jsonify(result.data)
 
-from routes.surplus import register_surplus_routes
-register_surplus_routes(app, supabase, require_auth)
+# Debug import surplus
+try:
+    from routes.surplus import register_surplus_routes
+    register_surplus_routes(app, supabase, require_auth)
+    print("[OK] Surplus routes registered successfully")
+except Exception as e:
+    import traceback
+    print(f"[ERROR] Failed to import surplus routes: {type(e).__name__}: {e}")
+    traceback.print_exc()
+
+# Health check endpoint
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'ok', 'message': 'Flask is running'}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
