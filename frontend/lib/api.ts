@@ -80,7 +80,7 @@ export async function generateAIDescription(payload: {
     original_price?: number
 }) {
     const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/api/ai/generate-description`, {
+    const response = await fetch(`/api/ai/generate-description`, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
@@ -96,7 +96,7 @@ export async function generateAIExpiry(payload: {
     original_price?: number
 }) {
     const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/api/ai/generate-expiry`, {
+    const response = await fetch(`/api/ai/generate-expiry`, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
