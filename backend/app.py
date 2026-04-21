@@ -25,10 +25,13 @@ def handle_preflight():
         response.status_code = 200
         return response
 
-supabase: Client = create_client(
-    os.environ.get("SUPABASE_URL"),
-    os.environ.get("SUPABASE_SERVICE_KEY")
-)
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("[ERROR] Missing SUPABASE_URL or SUPABASE_SERVICE_KEY!")
+    
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
 def get_current_user():
     auth_header = request.headers.get('Authorization', '')
