@@ -1,19 +1,32 @@
+# backend/app.py
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app,
-     origins="*",
-     supports_credentials=False,
-     methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-     allow_headers=["Content-Type", "Authorization"]
-)
+
+# Pakai after_request untuk manual set CORS headers
+# Lebih reliable daripada flask-cors untuk Authorization header
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get('Origin', '*')
+    response.headers['Access-Control-Allow-Origin'] = origin
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PATCH, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
+
+# Handle preflight OPTIONS request untuk semua route
+@app.before_request
+def handle_preflight():
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.status_code = 200
+        return response
 
 supabase: Client = create_client(
     os.environ.get("SUPABASE_URL"),
@@ -42,15 +55,11 @@ def require_auth(f):
         return f(user, *args, **kwargs)
     return decorated
 
-# ── Existing Routes ──────────────────────────────────────────────
 @app.route('/api/profile', methods=['GET'])
 @require_auth
 def get_profile(user):
     result = supabase.table('profiles') \
-        .select('*') \
-        .eq('id', user.id) \
-        .single() \
-        .execute()
+        .select('*').eq('id', user.id).single().execute()
     return jsonify(result.data)
 
 @app.route('/api/profile', methods=['PATCH'])
@@ -60,14 +69,9 @@ def update_profile(user):
     allowed_fields = {'full_name', 'phone_number'}
     update_data = {k: v for k, v in body.items() if k in allowed_fields}
     result = supabase.table('profiles') \
-        .update(update_data) \
-        .eq('id', user.id) \
-        .execute()
+        .update(update_data).eq('id', user.id).execute()
     return jsonify(result.data)
 
-# ── Register Surplus Routes ──────────────────────────────────────
-# Import SETELAH app & supabase & require_auth didefinisikan
-# untuk menghindari circular import
 from routes.surplus import register_surplus_routes
 register_surplus_routes(app, supabase, require_auth)
 
