@@ -12,12 +12,10 @@ export default function PartnerTermsPage() {
     const [hasPendingData, setHasPendingData] = useState(false)
 
     useEffect(() => {
-        // Cek apakah ada data dari form register
         const raw = sessionStorage.getItem('pendingRegister')
         setHasPendingData(!!raw)
     }, [])
 
-    // Daftar dengan Email/Password (data dari sessionStorage)
     const handleEmailRegister = async () => {
         if (!agreed) { setError('Please check the agreement box'); return }
         setLoading(true)
@@ -31,39 +29,39 @@ export default function PartnerTermsPage() {
             email,
             password,
             options: {
-                data: {
-                    full_name: fullName,
-                    role: 'partner',        // ← explicitly set partner
-                }
+                data: { full_name: fullName, role: 'partner' }
             }
         })
 
         if (signUpError) { setError(signUpError.message); setLoading(false); return }
 
-        if (data.user) {
+        if (data.session) {
             await supabase.from('profiles').upsert({
-                id: data.user.id,
+                id: data.user!.id,
                 full_name: fullName,
-                role: 'partner',            // ← explicitly set partner
+                role: 'partner',
             })
-        }
+            sessionStorage.removeItem('pendingRegister')
+            router.push('/dashboard/partner')
+            router.refresh()
 
-        sessionStorage.removeItem('pendingRegister')
-        router.push('/dashboard/partner')
+        } else if (data.user && !data.session) {
+            sessionStorage.removeItem('pendingRegister')
+            setError('Please check your email to confirm your account, then log in.')
+            setLoading(false)
+
+        } else {
+            setError('Registration failed. Please try again.')
+            setLoading(false)
+        }
     }
 
-    // Daftar dengan Google (setelah setuju terms)
     const handleGoogleRegister = async () => {
         if (!agreed) { setError('Please check the agreement box'); return }
-
-        // Simpan role=partner di cookie sebelum redirect Google
         document.cookie = `pending_role=partner; path=/; max-age=300`
-
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
-            options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
-            }
+            options: { redirectTo: `${window.location.origin}/auth/callback` }
         })
         if (error) setError(error.message)
     }
@@ -79,7 +77,6 @@ export default function PartnerTermsPage() {
                     By registering as a partner, I agree to the following terms:
                 </p>
 
-                {/* Terms Content */}
                 <div className="space-y-4 text-sm text-gray-700 max-h-72 overflow-y-auto pr-2 mb-6 border border-gray-100 rounded-xl p-4">
                     {[
                         {
@@ -118,7 +115,7 @@ export default function PartnerTermsPage() {
                             points: [
                                 'I provide valid business data (business name, address, contact details).',
                                 'I will upload a truthful Statement Letter that can be legally accounted for.',
-                                'I agree that my data will be used for the platform\'s operational purposes.',
+                                "I agree that my data will be used for the platform's operational purposes.",
                             ]
                         },
                         {
@@ -143,7 +140,6 @@ export default function PartnerTermsPage() {
                     ))}
                 </div>
 
-                {/* Agreement Checkbox */}
                 <div className="flex items-start gap-2 p-4 bg-gray-50 rounded-xl mb-4">
                     <input
                         type="checkbox"
@@ -163,10 +159,7 @@ export default function PartnerTermsPage() {
                     </div>
                 )}
 
-                {/* Register Buttons — tampil setelah centang */}
                 <div className={`space-y-3 transition-opacity ${agreed ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-
-                    {/* Email register — hanya tampil kalau ada data dari form */}
                     {hasPendingData && (
                         <button
                             onClick={handleEmailRegister}
@@ -177,7 +170,6 @@ export default function PartnerTermsPage() {
                         </button>
                     )}
 
-                    {/* Google register — selalu tampil */}
                     <button
                         onClick={handleGoogleRegister}
                         disabled={!agreed}
@@ -192,7 +184,6 @@ export default function PartnerTermsPage() {
                         Register as Partner with Google
                     </button>
 
-                    {/* Kalau tidak ada pending data dan belum centang */}
                     {!hasPendingData && (
                         <p className="text-xs text-gray-400 text-center">
                             Or{' '}

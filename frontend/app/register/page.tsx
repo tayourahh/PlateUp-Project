@@ -217,15 +217,31 @@ function RegisterForm() {
             password: form.password,
             options: { data: { full_name: form.fullName, role } }
         })
-        if (signUpError) { setError(signUpError.message); setLoading(false); return }
+
+        if (signUpError) {
+            setError(signUpError.message)
+            setLoading(false)
+            return
+        }
+
         if (data.user) {
+            // Insert profile
             await supabase.from('profiles').upsert({
                 id: data.user.id,
                 full_name: form.fullName,
                 role,
             })
+
+            // Paksa refresh session sebelum redirect
+            await supabase.auth.getSession()
+
+            router.push(role === 'partner' ? '/dashboard/partner' : '/dashboard/customer')
+            router.refresh()
+        } else {
+            // Email confirmation aktif — kasih tahu user
+            setError('Please check your email to confirm your account before logging in.')
+            setLoading(false)
         }
-        router.push('/dashboard/customer')
     }
 
     // Customer Google langsung tanpa modal
