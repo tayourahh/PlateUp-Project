@@ -1,5 +1,6 @@
 'use client'
 // frontend/app/dashboard/partner/surplus/page.tsx
+// REPLACE seluruh file ini
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -8,30 +9,113 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
     LayoutDashboard, Package, ClipboardList,
-    BarChart2, Settings, LogOut,
-    Sparkles, Upload, ChevronDown, X, CheckCircle, AlertCircle
+    BarChart2, Settings, LogOut, Plus,
+    Clock, AlertTriangle, CheckCircle2,
+    Minus, Trash2, Edit3, ChevronDown,
+    Sparkles, Upload, X
 } from 'lucide-react'
-import {
-    createSurplusProduct,
-    generateAIDescription,
-    generateAIExpiry,
-} from '@/lib/api'
 
-interface FormState {
+// ── Types ─────────────────────────────────────────────────────────
+interface SurplusProduct {
+    id: string
     product_name: string
     category: string
+    original_price: number
+    plate_up_price: number
+    expiry_estimate: string       // e.g. "Konsumsi sebelum pukul 20.00"
+    expiry_datetime: string       // ISO string untuk countdown
     production_time: string
-    expiry_estimate: string
-    original_price: string
-    plate_up_price: string
     description: string
+    image_url: string | null
+    quantity: number
+    status: 'active' | 'draft' | 'sold_out' | 'expired'
+    is_draft: boolean
+    created_at: string
 }
 
-interface AILoadingState {
-    expiry: boolean
-    price: boolean
-    description: boolean
-}
+// ── Dummy data — akan diganti dengan fetch Supabase ───────────────
+const DUMMY_PRODUCTS: SurplusProduct[] = [
+    {
+        id: '1',
+        product_name: 'Bakmie Komplit',
+        category: 'Noodles & Pasta',
+        original_price: 50000,
+        plate_up_price: 25000,
+        expiry_estimate: 'Konsumsi sebelum pukul 20.00',
+        expiry_datetime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2h dari sekarang
+        production_time: '30 min - 1 hour ago',
+        description: 'Bakmie segar dengan topping komplit',
+        image_url: null,
+        quantity: 12,
+        status: 'active',
+        is_draft: false,
+        created_at: new Date().toISOString(),
+    },
+    {
+        id: '2',
+        product_name: 'Croissant Butter',
+        category: 'Bread & Pastry',
+        original_price: 35000,
+        plate_up_price: 18000,
+        expiry_estimate: 'Konsumsi sebelum pukul 19.00',
+        expiry_datetime: new Date(Date.now() + 25 * 60 * 1000).toISOString(), // 25 menit — warning!
+        production_time: '2 - 3 hours ago',
+        description: 'Croissant butter fresh dari oven',
+        image_url: null,
+        quantity: 6,
+        status: 'active',
+        is_draft: false,
+        created_at: new Date().toISOString(),
+    },
+    {
+        id: '3',
+        product_name: 'Nasi Gudeg Komplit',
+        category: 'Rice Dishes',
+        original_price: 45000,
+        plate_up_price: 22000,
+        expiry_estimate: 'Sudah melewati batas',
+        expiry_datetime: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // expired 30 menit lalu
+        production_time: '3+ hours ago',
+        description: 'Nasi gudeg dengan ayam dan krecek',
+        image_url: null,
+        quantity: 3,
+        status: 'active',
+        is_draft: false,
+        created_at: new Date().toISOString(),
+    },
+    {
+        id: '4',
+        product_name: 'Es Teh Manis',
+        category: 'Beverages',
+        original_price: 12000,
+        plate_up_price: 7000,
+        expiry_estimate: 'Konsumsi sebelum pukul 21.30',
+        expiry_datetime: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(), // 4h
+        production_time: 'Just cooked (< 30 min)',
+        description: 'Es teh manis segar',
+        image_url: null,
+        quantity: 20,
+        status: 'active',
+        is_draft: false,
+        created_at: new Date().toISOString(),
+    },
+    {
+        id: '5',
+        product_name: 'Snack Box Mix',
+        category: 'Snacks & Sides',
+        original_price: 28000,
+        plate_up_price: 15000,
+        expiry_estimate: 'Konsumsi sebelum pukul 22.00',
+        expiry_datetime: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(), // 5h
+        production_time: 'Just cooked (< 30 min)',
+        description: 'Aneka snack dalam satu box',
+        image_url: null,
+        quantity: 8,
+        status: 'active',
+        is_draft: false,
+        created_at: new Date().toISOString(),
+    },
+]
 
 const MENU_ITEMS = [
     { label: 'Dashboard', href: '/dashboard/partner', icon: LayoutDashboard },
@@ -41,45 +125,170 @@ const MENU_ITEMS = [
     { label: 'Setting', href: '/dashboard/partner/settings', icon: Settings },
 ]
 
-const FOOD_CATEGORIES = [
-    'Noodles & Pasta', 'Rice Dishes', 'Snacks & Sides',
-    'Beverages', 'Desserts', 'Bread & Pastry', 'Other',
-]
+// ── Countdown Hook ────────────────────────────────────────────────
+function useCountdown(expiryDatetime: string) {
+    const [timeLeft, setTimeLeft] = useState('')
+    const [status, setStatus] = useState<'ok' | 'warning' | 'expired'>('ok')
 
-const COOKING_TIMES = [
-    'Just cooked (< 30 min)', '30 min - 1 hour ago',
-    '1 - 2 hours ago', '2 - 3 hours ago', '3+ hours ago',
-]
+    useEffect(() => {
+        const update = () => {
+            const diff = new Date(expiryDatetime).getTime() - Date.now()
 
-const INITIAL_FORM: FormState = {
-    product_name: '', category: '', production_time: '',
-    expiry_estimate: '', original_price: '', plate_up_price: '', description: '',
+            if (diff <= 0) {
+                // Sudah expired — hitung berapa lama
+                const overBy = Math.abs(diff)
+                const overMins = Math.floor(overBy / 60000)
+                const overHrs = Math.floor(overMins / 60)
+                const overMin = overMins % 60
+
+                if (overHrs > 0) {
+                    setTimeLeft(`+${overHrs}j ${overMin}m terlambat`)
+                } else {
+                    setTimeLeft(`+${overMins}m terlambat`)
+                }
+                setStatus('expired')
+                return
+            }
+
+            const totalMins = Math.floor(diff / 60000)
+            const hours = Math.floor(totalMins / 60)
+            const mins = totalMins % 60
+            const secs = Math.floor((diff % 60000) / 1000)
+
+            if (diff < 30 * 60 * 1000) {
+                // Kurang dari 30 menit — warning
+                setTimeLeft(`${mins}m ${secs}s`)
+                setStatus('warning')
+            } else if (hours > 0) {
+                setTimeLeft(`${hours}j ${mins}m`)
+                setStatus('ok')
+            } else {
+                setTimeLeft(`${mins}m ${secs}s`)
+                setStatus('ok')
+            }
+        }
+
+        update()
+        const interval = setInterval(update, 1000)
+        return () => clearInterval(interval)
+    }, [expiryDatetime])
+
+    return { timeLeft, status }
 }
 
-// Shared input className — satu sumber kebenaran supaya konsisten
-// text-gray-800 = warna teks yang diketik user (gelap, readable)
-// placeholder-gray-400 = warna hint text (cukup terlihat tapi tidak dominan)
-const inputBase = "w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 outline-none focus:border-[#c8e84a] focus:ring-2 focus:ring-[#c8e84a]/20 transition-all placeholder-gray-400"
+// ── Product Row Component ─────────────────────────────────────────
+function ProductRow({ product, onQuantityChange, onDelete }: {
+    product: SurplusProduct
+    onQuantityChange: (id: string, delta: number) => void
+    onDelete: (id: string) => void
+}) {
+    const { timeLeft, status } = useCountdown(product.expiry_datetime)
 
-export default function ManageSurplus() {
+    const timerColor = {
+        ok: 'text-[#3a7d44] bg-[#e8f5c8]',
+        warning: 'text-[#b45309] bg-[#fef3c7]',
+        expired: 'text-red-600 bg-red-50',
+    }[status]
+
+    const timerIcon = {
+        ok: <Clock size={13} className="text-[#3a7d44]" />,
+        warning: <AlertTriangle size={13} className="text-[#b45309]" />,
+        expired: <AlertTriangle size={13} className="text-red-500" />,
+    }[status]
+
+    return (
+        <tr className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors
+            ${status === 'expired' ? 'opacity-75' : ''}`}>
+
+            {/* Product */}
+            <td className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#f6fabc]/60 border border-[#c8e84a]/40 flex items-center justify-center shrink-0 text-lg">
+                        {product.category.includes('Noodle') ? '🍜' :
+                            product.category.includes('Rice') ? '🍚' :
+                                product.category.includes('Bread') ? '🥐' :
+                                    product.category.includes('Bever') ? '🧋' : '🍱'}
+                    </div>
+                    <div>
+                        <p className="text-sm font-semibold text-gray-900 leading-tight">{product.product_name}</p>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#e8f5c8] text-[#3a7d44] font-medium">
+                            {product.category}
+                        </span>
+                    </div>
+                </div>
+            </td>
+
+            {/* Quantity */}
+            <td className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => onQuantityChange(product.id, -1)}
+                        disabled={product.quantity <= 0}
+                        className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-100 disabled:opacity-40 transition-colors">
+                        <Minus size={11} />
+                    </button>
+                    <span className="text-sm font-bold text-gray-900 w-6 text-center">{product.quantity}</span>
+                    <button
+                        onClick={() => onQuantityChange(product.id, 1)}
+                        className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors">
+                        <Plus size={11} />
+                    </button>
+                </div>
+            </td>
+
+            {/* Price Setting */}
+            <td className="px-4 py-3">
+                <div>
+                    <p className="text-xs text-gray-400 line-through">Rp {product.original_price.toLocaleString('id-ID')}</p>
+                    <p className="text-sm font-bold text-[#3a7d44]">Rp {product.plate_up_price.toLocaleString('id-ID')}</p>
+                </div>
+            </td>
+
+            {/* Expires In — LIVE COUNTDOWN */}
+            <td className="px-4 py-3">
+                <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${timerColor}`}>
+                    {timerIcon}
+                    <span className="font-mono">{timeLeft}</span>
+                </div>
+            </td>
+
+            {/* Notes / Actions */}
+            <td className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                    <button className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 px-2 py-1 rounded-lg transition-colors">
+                        Notes...
+                    </button>
+                    <button
+                        onClick={() => onDelete(product.id)}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors">
+                        <Trash2 size={13} />
+                    </button>
+                </div>
+            </td>
+        </tr>
+    )
+}
+
+// ── Main Component ────────────────────────────────────────────────
+export default function ManageSurplusDashboard() {
     const supabase = createClient()
     const router = useRouter()
-    const fileRef = useRef<HTMLInputElement>(null)
 
     const [profile, setProfile] = useState<any>(null)
     const [loading, setLoading] = useState(true)
-    const [form, setForm] = useState<FormState>(INITIAL_FORM)
-    const [imageFile, setImageFile] = useState<File | null>(null)
-    const [imagePreview, setImagePreview] = useState<string | null>(null)
-    const [isDragging, setIsDragging] = useState(false)
-    const [aiLoading, setAiLoading] = useState<AILoadingState>({ expiry: false, price: false, description: false })
-    const [catOpen, setCatOpen] = useState(false)
-    const [prodOpen, setProdOpen] = useState(false)
-    const [isSubmitting, setIsSubmitting] = useState(false)
-    const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
-    const [errorMsg, setErrorMsg] = useState('')
+    const [products, setProducts] = useState<SurplusProduct[]>(DUMMY_PRODUCTS)
     const [notifOpen, setNotifOpen] = useState(false)
+    const [activeMenu, setActiveMenu] = useState('Manage Surplus')
 
+    // Stats
+    const activeCount = products.filter(p => p.status === 'active').length
+    const totalValue = products.reduce((sum, p) => sum + p.plate_up_price * p.quantity, 0)
+    const nearExpiryCount = products.filter(p => {
+        const diff = new Date(p.expiry_datetime).getTime() - Date.now()
+        return diff > 0 && diff < 30 * 60 * 1000
+    }).length
+
+    // ── Auth ──────────────────────────────────────────────────────
     useEffect(() => {
         const init = async () => {
             const { data: { session } } = await supabase.auth.getSession()
@@ -96,91 +305,37 @@ export default function ManageSurplus() {
                 || 'Partner'
 
             setProfile({ ...profileData, full_name: name })
+
+            // TODO: fetch real products from Supabase
+            // const { data } = await supabase
+            //     .from('surplus_products')
+            //     .select('*')
+            //     .eq('partner_id', session.user.id)
+            //     .order('created_at', { ascending: false })
+            // if (data) setProducts(data)
+
             setLoading(false)
         }
         init()
     }, [])
 
-    const updateForm = (field: keyof FormState, value: string) =>
-        setForm(prev => ({ ...prev, [field]: value }))
-
-    const processImage = (file: File) => {
-        if (!file.type.startsWith('image/')) { alert('File harus berupa gambar (JPG, PNG, WEBP)'); return }
-        setImageFile(file)
-        const reader = new FileReader()
-        reader.onloadend = () => setImagePreview(reader.result as string)
-        reader.readAsDataURL(file)
+    const handleQuantityChange = (id: string, delta: number) => {
+        setProducts(prev => prev.map(p =>
+            p.id === id ? { ...p, quantity: Math.max(0, p.quantity + delta) } : p
+        ))
     }
 
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const file = e.dataTransfer.files[0]
-        if (file) processImage(file)
-    }, [])
-
-    const handleGenerateExpiry = async () => {
-        if (!form.product_name || !form.category || !form.production_time) {
-            alert('Isi Product Name, Category, dan Production Time dulu ya!'); return
-        }
-        setAiLoading(prev => ({ ...prev, expiry: true, price: true }))
-        try {
-            const result = await generateAIExpiry({
-                product_name: form.product_name, category: form.category,
-                production_time: form.production_time,
-                original_price: form.original_price ? Number(form.original_price) : 0,
-            })
-            setForm(prev => ({
-                ...prev,
-                expiry_estimate: result.expiry_estimate,
-                plate_up_price: String(result.plate_up_price),
-            }))
-        } catch (err) {
-            console.error('AI Expiry error:', err)
-            alert('Gagal generate via AI. Coba isi manual dulu ya.')
-        } finally {
-            setAiLoading(prev => ({ ...prev, expiry: false, price: false }))
+    const handleDelete = (id: string) => {
+        if (confirm('Hapus produk ini dari inventory?')) {
+            setProducts(prev => prev.filter(p => p.id !== id))
         }
     }
 
-    const handleGenerateDescription = async () => {
-        if (!form.product_name || !form.category) { alert('Isi Product Name dan Category dulu ya!'); return }
-        setAiLoading(prev => ({ ...prev, description: true }))
-        try {
-            const result = await generateAIDescription({
-                product_name: form.product_name, category: form.category,
-                original_price: form.original_price ? Number(form.original_price) : 0,
-            })
-            setForm(prev => ({ ...prev, description: result.description }))
-        } catch (err) {
-            console.error('AI Description error:', err)
-            alert('Gagal generate deskripsi. Coba isi manual.')
-        } finally {
-            setAiLoading(prev => ({ ...prev, description: false }))
-        }
+    const handleLogout = async () => {
+        await supabase.auth.signOut()
+        router.push('/')
+        router.refresh()
     }
-
-    const handleSubmit = async (isDraft: boolean) => {
-        if (!form.product_name) { setErrorMsg('Product name tidak boleh kosong!'); setSubmitStatus('error'); return }
-        setIsSubmitting(true); setSubmitStatus('idle'); setErrorMsg('')
-        try {
-            const payload = new FormData()
-            Object.entries(form).forEach(([k, v]) => payload.append(k, v))
-            payload.append('is_draft', String(isDraft))
-            if (imageFile) payload.append('image', imageFile)
-            await createSurplusProduct(payload)
-            setSubmitStatus('success')
-            setTimeout(() => router.push('/dashboard/partner'), 1500)
-        } catch (err: any) {
-            console.error('Submit error:', err)
-            setSubmitStatus('error')
-            setErrorMsg(err.message || 'Terjadi kesalahan. Coba lagi.')
-        } finally {
-            setIsSubmitting(false)
-        }
-    }
-
-    const handleLogout = async () => { await supabase.auth.signOut(); router.push('/'); router.refresh() }
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-[#f0f4f0]">
@@ -190,22 +345,6 @@ export default function ManageSurplus() {
 
     const firstName = profile?.full_name?.split(' ')[0] ?? 'Partner'
     const initials = profile?.full_name?.charAt(0)?.toUpperCase() ?? 'P'
-
-    // Reusable "Generate AI" button — supaya tidak duplikasi JSX
-    const AIButton = ({ onClick, loading }: { onClick: () => void; loading: boolean }) => (
-        <button type="button" onClick={onClick} disabled={loading}
-            className="flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed group">
-            <Sparkles size={11} className="text-[#3a7d44] group-hover:scale-110 transition-transform" />
-            {/* 
-                Gradient ini match persis dengan .text-gradient-login di globals.css
-                (#E3EF26 → #076653). Pakai inline style karena -webkit-text-fill-color
-                tidak bisa di-set via Tailwind class biasa.
-            */}
-            <span className="text-gradient-login text-xs font-semibold">
-                {loading ? 'Generating...' : 'Generate AI'}
-            </span>
-        </button>
-    )
 
     return (
         <div className="min-h-screen flex flex-col bg-[#f0f4f0]">
@@ -229,15 +368,10 @@ export default function ManageSurplus() {
                         <button onClick={() => setNotifOpen(!notifOpen)}
                             className="w-9 h-9 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition-colors">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
-                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                             </svg>
                         </button>
-                        {notifOpen && (
-                            <div className="absolute right-0 top-11 w-72 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 p-4">
-                                <p className="text-sm font-medium text-gray-900 mb-3">Notifications</p>
-                                <div className="text-xs text-gray-400 text-center py-4">No new notifications</div>
-                            </div>
-                        )}
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-[#d4e8c2] border-2 border-[#3a7d44] flex items-center justify-center text-[#3a7d44] text-sm font-bold">
@@ -285,247 +419,107 @@ export default function ManageSurplus() {
 
                 {/* MAIN */}
                 <main className="flex-1 overflow-y-auto p-6">
-                    <div className="max-w-3xl mx-auto">
 
-                        {/* Breadcrumb */}
-                        <div className="mb-5">
-                            <p className="text-xs text-gray-400 mb-1">
-                                <Link href="/dashboard/partner" className="hover:text-[#3a7d44] transition-colors">Dashboard Partner</Link>
-                                {' → '}
-                                <span className="text-gray-600">Manage Surplus (Input Order)</span>
-                            </p>
-                            <h1 className="text-xl font-bold text-gray-900">Add Surplus Product</h1>
-                            <p className="text-sm text-gray-500">Upload your surplus food before it goes to waste</p>
+                    {/* Page Header */}
+                    <div className="flex items-start justify-between mb-6">
+                        <div>
+                            <h1 className="text-xl font-bold text-gray-900">My Surplus Inventory</h1>
+                            <p className="text-sm text-gray-500 mt-0.5">Manage your surplus meals and turn waste into impact.</p>
                         </div>
+                        {/* Add New Surplus Button */}
+                        <Link href="/dashboard/partner/surplus/add"
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all
+                                bg-[#3a7d44] hover:bg-[#2d6435] shadow-sm hover:shadow-md">
+                            <Plus size={16} />
+                            Add New Surplus
+                        </Link>
+                    </div>
 
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
-
-                            {/* AI Tip Cards */}
-                            <div className="grid grid-cols-2 gap-3">
-                                {[
-                                    { title: 'Generate with AI', desc: 'Optimize your detail product automatically' },
-                                    { title: 'Pro Tips!', desc: 'AI ensures food safety & quality for customers' },
-                                ].map(card => (
-                                    <div key={card.title} className="bg-[#f6fabc]/50 border border-[#c8e84a]/60 rounded-xl p-3.5 flex items-start gap-2.5">
-                                        <div className="w-7 h-7 rounded-full bg-[#c8e84a]/40 flex items-center justify-center shrink-0 mt-0.5">
-                                            <Sparkles size={13} className="text-[#666c11]" />
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-semibold text-[#666c11] mb-0.5">{card.title}</p>
-                                            <p className="text-[10px] text-gray-500 leading-relaxed">{card.desc}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Image Upload Zone */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-800 mb-1.5">Product Image</label>
-                                <div
-                                    onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
-                                    onDragLeave={() => setIsDragging(false)}
-                                    onDrop={handleDrop}
-                                    onClick={() => fileRef.current?.click()}
-                                    className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-200
-                                        ${isDragging
-                                            ? 'border-[#c8e84a] bg-[#f6fabc]/40 scale-[1.01]'
-                                            : 'border-gray-200 bg-[#f6fabc]/15 hover:border-[#c8e84a] hover:bg-[#f6fabc]/25'}`}
-                                >
-                                    {imagePreview ? (
-                                        <div className="relative inline-block">
-                                            <img src={imagePreview} alt="Preview" className="max-h-52 mx-auto rounded-xl object-cover shadow-sm" />
-                                            <button type="button"
-                                                onClick={e => { e.stopPropagation(); setImagePreview(null); setImageFile(null) }}
-                                                className="absolute -top-2 -right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow border border-gray-200 hover:bg-red-50 transition-colors">
-                                                <X size={12} className="text-gray-500" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="w-12 h-12 rounded-full bg-[#e8f5c8] flex items-center justify-center mx-auto mb-3">
-                                                <Upload size={22} className="text-[#3a7d44]" />
-                                            </div>
-                                            <p className="text-sm font-semibold text-gray-700 mb-1">Upload Product Image</p>
-                                            <p className="text-xs text-gray-400">Drag and drop your photo here or click to browse</p>
-                                            <p className="text-[10px] text-gray-300 mt-1">JPG, PNG, WEBP — Max 5MB</p>
-                                        </>
-                                    )}
-                                    <input ref={fileRef} type="file" accept="image/*" className="hidden"
-                                        onChange={e => { if (e.target.files?.[0]) processImage(e.target.files[0]) }} />
-                                </div>
-                            </div>
-
-                            {/* Product Name */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-800 mb-1.5">Product Name</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g., Honey Grilled Chicken Rice"
-                                    value={form.product_name}
-                                    onChange={e => updateForm('product_name', e.target.value)}
-                                    className={inputBase}
-                                />
-                            </div>
-
-                            {/* Product Category */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-800 mb-1.5">Product Category</label>
-                                <div className="relative">
-                                    <button type="button"
-                                        onClick={() => { setCatOpen(!catOpen); setProdOpen(false) }}
-                                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-left flex items-center justify-between bg-white hover:border-[#c8e84a] transition-all">
-                                        {/* 
-                                            Kenapa text-gray-800 vs text-gray-400?
-                                            text-gray-800 = user sudah pilih → teks gelap menunjukkan ada nilai
-                                            text-gray-400 = belum pilih → warna placeholder yang subtle
-                                        */}
-                                        <span className={form.category ? 'text-gray-800' : 'text-gray-400'}>
-                                            {form.category || 'Select food category'}
-                                        </span>
-                                        <ChevronDown size={16} className={`text-gray-400 transition-transform duration-200 ${catOpen ? 'rotate-180' : ''}`} />
-                                    </button>
-                                    {catOpen && (
-                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg z-20 overflow-hidden">
-                                            {FOOD_CATEGORIES.map(cat => (
-                                                <button key={cat} type="button"
-                                                    onClick={() => { updateForm('category', cat); setCatOpen(false) }}
-                                                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors
-                                                        ${form.category === cat ? 'bg-[#f6fabc] text-[#666c11] font-medium' : 'hover:bg-[#f6fabc]/50 text-gray-700'}`}>
-                                                    {cat}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Production Time + Expiry Estimate */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Production Time</label>
-                                    <div className="relative">
-                                        <button type="button"
-                                            onClick={() => { setProdOpen(!prodOpen); setCatOpen(false) }}
-                                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-left flex items-center justify-between bg-white hover:border-[#c8e84a] transition-all">
-                                            <span className={form.production_time ? 'text-gray-800' : 'text-gray-400'}>
-                                                {form.production_time || 'Select cooking time'}
-                                            </span>
-                                            <ChevronDown size={16} className={`text-gray-400 transition-transform duration-200 ${prodOpen ? 'rotate-180' : ''}`} />
-                                        </button>
-                                        {prodOpen && (
-                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg z-20 overflow-hidden">
-                                                {COOKING_TIMES.map(t => (
-                                                    <button key={t} type="button"
-                                                        onClick={() => { updateForm('production_time', t); setProdOpen(false) }}
-                                                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors
-                                                            ${form.production_time === t ? 'bg-[#f6fabc] text-[#666c11] font-medium' : 'hover:bg-[#f6fabc]/50 text-gray-700'}`}>
-                                                        {t}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <label className="text-sm font-semibold text-gray-800">Expiry Estimate</label>
-                                        <AIButton onClick={handleGenerateExpiry} loading={aiLoading.expiry} />
-                                    </div>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g., Best before 6PM"
-                                        value={form.expiry_estimate}
-                                        onChange={e => updateForm('expiry_estimate', e.target.value)}
-                                        className={`${inputBase} ${aiLoading.expiry ? 'ai-loading' : ''}`}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Original Price + PlateUp Price */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Original Price</label>
-                                    <div className="relative">
-                                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-medium pointer-events-none">Rp</span>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            placeholder="15000"
-                                            value={form.original_price}
-                                            onChange={e => updateForm('original_price', e.target.value)}
-                                            className={`${inputBase} pl-10`}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <label className="text-sm font-semibold text-gray-800">Plate Up Price</label>
-                                        <AIButton onClick={handleGenerateExpiry} loading={aiLoading.price} />
-                                    </div>
-                                    <div className="relative">
-                                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-medium pointer-events-none">Rp</span>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            placeholder="0"
-                                            value={form.plate_up_price}
-                                            onChange={e => updateForm('plate_up_price', e.target.value)}
-                                            className={`${inputBase} pl-10 ${aiLoading.price ? 'ai-loading' : ''}`}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Product Description */}
-                            <div>
-                                <div className="flex items-center justify-between mb-1.5">
-                                    <label className="text-sm font-semibold text-gray-800">Product Description</label>
-                                    <AIButton onClick={handleGenerateDescription} loading={aiLoading.description} />
-                                </div>
-                                <textarea
-                                    rows={3}
-                                    placeholder="Briefly describe the food's condition (e.g., Kept in chiller)"
-                                    value={form.description}
-                                    onChange={e => updateForm('description', e.target.value)}
-                                    className={`${inputBase} resize-none ${aiLoading.description ? 'ai-loading' : ''}`}
-                                />
-                            </div>
-
-                            {/* Status Messages */}
-                            {submitStatus === 'success' && (
-                                <div className="flex items-center gap-2.5 bg-[#e8f5c8] border border-[#3a7d44]/30 rounded-xl px-4 py-3">
-                                    <CheckCircle size={16} className="text-[#3a7d44] shrink-0" />
-                                    <p className="text-sm text-[#2d5a1a] font-medium">Produk berhasil diupload! Redirecting ke dashboard...</p>
-                                </div>
-                            )}
-                            {submitStatus === 'error' && (
-                                <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                                    <AlertCircle size={16} className="text-red-500 shrink-0" />
-                                    <p className="text-sm text-red-600">{errorMsg || 'Terjadi kesalahan. Coba lagi.'}</p>
-                                </div>
-                            )}
-
-                            {/* 
-                                Action Buttons
-                                Save Draft  = lime terang (#c8e84a → #f6fabc) dengan teks gelap
-                                Upload Product = olive gelap (#666c11) dengan teks lime terang
-                                → Dua warna yang sama tapi dibalik, menciptakan visual pair yang cohesive
-                            */}
-                            <div className="flex gap-3 pt-1">
-                                <button type="button" onClick={() => handleSubmit(true)} disabled={isSubmitting}
-                                    className="btn-save-draft flex-1 py-3 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
-                                    {isSubmitting ? 'Menyimpan...' : 'Save Draft'}
-                                </button>
-                                <button type="button" onClick={() => handleSubmit(false)} disabled={isSubmitting}
-                                    className="btn-upload-product flex-1 py-3 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
-                                    {isSubmitting ? 'Mengupload...' : 'Upload Product'}
-                                </button>
-                            </div>
-
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-3 gap-4 mb-6">
+                        <div className="bg-[#f6fabc]/70 border border-[#c8e84a]/60 rounded-2xl p-4">
+                            <p className="text-xs font-medium text-[#666c11] uppercase tracking-wide mb-1">Active Listings</p>
+                            <p className="text-2xl font-bold text-[#2d3a00]">{activeCount} <span className="text-sm font-medium">Product Live</span></p>
+                            <p className="text-[10px] text-[#666c11] mt-1">Your delicious meals are now visible to students nearby.</p>
+                        </div>
+                        <div className="bg-[#f6fabc]/70 border border-[#c8e84a]/60 rounded-2xl p-4">
+                            <p className="text-xs font-medium text-[#666c11] uppercase tracking-wide mb-1">Today Saved Value</p>
+                            <p className="text-2xl font-bold text-[#2d3a00]">Rp {(totalValue / 1000).toFixed(0)}.<span className="text-sm">000</span></p>
+                            <p className="text-[10px] text-[#666c11] mt-1">Total earnings from rescued meals.</p>
+                        </div>
+                        <div className={`border rounded-2xl p-4 ${nearExpiryCount > 0 ? 'bg-amber-50 border-amber-200' : 'bg-[#f6fabc]/70 border-[#c8e84a]/60'}`}>
+                            <p className={`text-xs font-medium uppercase tracking-wide mb-1 ${nearExpiryCount > 0 ? 'text-amber-600' : 'text-[#666c11]'}`}>
+                                Total Near Expiry
+                            </p>
+                            <p className={`text-2xl font-bold ${nearExpiryCount > 0 ? 'text-amber-700' : 'text-[#2d3a00]'}`}>
+                                {nearExpiryCount} <span className="text-sm font-medium">Units Flagged</span>
+                            </p>
+                            <p className={`text-[10px] mt-1 ${nearExpiryCount > 0 ? 'text-amber-600' : 'text-[#666c11]'}`}>
+                                {nearExpiryCount > 0 ? 'Sell these faster with a flash discount.' : 'All products are within safe time range.'}
+                            </p>
                         </div>
                     </div>
+
+                    {/* Inventory Table */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+                            <h2 className="text-sm font-semibold text-gray-800">Inventory Breakdown</h2>
+                            <div className="flex items-center gap-2 text-xs text-gray-400">
+                                <div className="flex items-center gap-1">
+                                    <div className="w-2 h-2 rounded-full bg-[#3a7d44]" />
+                                    <span>Aman</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <div className="w-2 h-2 rounded-full bg-amber-400" />
+                                    <span>&lt; 30 menit</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <div className="w-2 h-2 rounded-full bg-red-400" />
+                                    <span>Expired</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-gray-50">
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Product</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Quantity</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Price Setting</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Expires In</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {products.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="px-4 py-12 text-center">
+                                                <div className="w-12 h-12 rounded-full bg-[#f6fabc] flex items-center justify-center mx-auto mb-3">
+                                                    <Package size={20} className="text-[#666c11]" />
+                                                </div>
+                                                <p className="text-sm text-gray-500 mb-1">Belum ada produk surplus</p>
+                                                <Link href="/dashboard/partner/surplus/add"
+                                                    className="text-xs text-[#3a7d44] font-medium hover:underline">
+                                                    + Tambah produk pertama
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        products.map(product => (
+                                            <ProductRow
+                                                key={product.id}
+                                                product={product}
+                                                onQuantityChange={handleQuantityChange}
+                                                onDelete={handleDelete}
+                                            />
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                 </main>
             </div>
         </div>
