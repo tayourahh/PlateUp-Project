@@ -72,13 +72,13 @@ export default function LoginPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                         <input type="email" name="email" value={form.email}
                             onChange={handleChange} placeholder="Your Email" required
-                            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#3a7d44]/20 focus:border-[#3a7d44]" />
+                            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#3a7d44]/20 focus:border-[#3a7d44]" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                         <input type="password" name="password" value={form.password}
                             onChange={handleChange} placeholder="Your password" required
-                            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#3a7d44]/20 focus:border-[#3a7d44]" />
+                            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#3a7d44]/20 focus:border-[#3a7d44]" />
                     </div>
 
                     <div className="text-right">
