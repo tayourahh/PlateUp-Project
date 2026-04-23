@@ -1,7 +1,4 @@
 'use client'
-// frontend/app/dashboard/partner/surplus/add/page.tsx
-// Buat file BARU di path ini
-
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -17,8 +14,8 @@ import {
 interface FormState {
     product_name: string
     category: string
-    production_time: string      // waktu produksi dalam format HH:MM (24h)
-    expiry_time: string          // waktu expiry dalam format HH:MM (24h)
+    production_time: string
+    expiry_time: string
     original_price: string
     plate_up_price: string
     description: string
@@ -55,8 +52,13 @@ const INITIAL_FORM: FormState = {
     quantity: '1',
 }
 
-// Shared input class
 const inputBase = "w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 outline-none focus:border-[#c8e84a] focus:ring-2 focus:ring-[#c8e84a]/20 transition-all placeholder-gray-400"
+
+// ─── Helper: ambil Bearer token dari Supabase session ───────────────
+const getAuthHeader = async (supabase: any): Promise<Record<string, string>> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session ? { 'Authorization': `Bearer ${session.access_token}` } : {}
+}
 
 export default function AddSurplusPage() {
     const supabase = createClient()
@@ -74,7 +76,6 @@ export default function AddSurplusPage() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
     const [errorMsg, setErrorMsg] = useState('')
-    const [notifOpen, setNotifOpen] = useState(false)
 
     useEffect(() => {
         const init = async () => {
@@ -93,7 +94,6 @@ export default function AddSurplusPage() {
 
             setProfile({ ...profileData, full_name: name })
 
-            // Auto-set production time ke waktu sekarang
             const now = new Date()
             const hh = String(now.getHours()).padStart(2, '0')
             const mm = String(now.getMinutes()).padStart(2, '0')
@@ -122,7 +122,6 @@ export default function AddSurplusPage() {
         if (file) processImage(file)
     }, [])
 
-    // Convert HH:MM ke datetime ISO untuk hari ini
     const timeToISO = (timeStr: string): string => {
         const [h, m] = timeStr.split(':').map(Number)
         const d = new Date()
@@ -130,16 +129,22 @@ export default function AddSurplusPage() {
         return d.toISOString()
     }
 
+    // ─── Generate Expiry + Price ─────────────────────────────────────
     const handleGenerateExpiry = async () => {
         if (!form.product_name || !form.category || !form.production_time) {
             alert('Isi Product Name, Category, dan Production Time dulu!')
             return
         }
+        if (!form.original_price) {
+            alert('Isi Original Price dulu supaya AI bisa hitung Plate Up Price!')
+            return
+        }
         setAiLoading(prev => ({ ...prev, expiry: true, price: true }))
         try {
+            const authHeaders = await getAuthHeader(supabase)
             const res = await fetch('/api/ai/generate-expiry', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeaders },
                 body: JSON.stringify({
                     product_name: form.product_name,
                     category: form.category,
@@ -148,28 +153,22 @@ export default function AddSurplusPage() {
                 })
             })
             const result = await res.json()
-
-            // Convert expiry estimate ke HH:MM kalau ada
-            // Misal "Konsumsi sebelum pukul 20.00" → extract "20:00"
-            let expiryTime = form.expiry_time
-            const match = result.expiry_estimate?.match(/(\d{1,2})[.:](\d{2})/)
-            if (match) {
-                expiryTime = `${String(match[1]).padStart(2, '0')}:${match[2]}`
-            }
+            if (!res.ok) throw new Error(result.error || 'Generate gagal')
 
             setForm(prev => ({
                 ...prev,
-                expiry_time: expiryTime,
+                expiry_time: result.expiry_time || prev.expiry_time,
                 plate_up_price: String(result.plate_up_price || ''),
             }))
-        } catch (err) {
+        } catch (err: any) {
             console.error(err)
-            alert('AI generate gagal. Isi manual ya.')
+            alert(`AI generate gagal: ${err.message}`)
         } finally {
             setAiLoading(prev => ({ ...prev, expiry: false, price: false }))
         }
     }
 
+    // ─── Generate Description ────────────────────────────────────────
     const handleGenerateDescription = async () => {
         if (!form.product_name || !form.category) {
             alert('Isi Product Name dan Category dulu!')
@@ -177,20 +176,25 @@ export default function AddSurplusPage() {
         }
         setAiLoading(prev => ({ ...prev, description: true }))
         try {
+            const authHeaders = await getAuthHeader(supabase)
             const res = await fetch('/api/ai/generate-description', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeaders },
                 body: JSON.stringify({
                     product_name: form.product_name,
                     category: form.category,
                     original_price: Number(form.original_price) || 0,
+                    plate_up_price: Number(form.plate_up_price) || 0,
+                    expiry_time: form.expiry_time || '',
                 })
             })
             const result = await res.json()
+            if (!res.ok) throw new Error(result.error || 'Generate gagal')
+
             setForm(prev => ({ ...prev, description: result.description || '' }))
-        } catch (err) {
+        } catch (err: any) {
             console.error(err)
-            alert('AI generate gagal. Isi manual ya.')
+            alert(`AI generate gagal: ${err.message}`)
         } finally {
             setAiLoading(prev => ({ ...prev, description: false }))
         }
@@ -211,11 +215,8 @@ export default function AddSurplusPage() {
             const { data: { session } } = await supabase.auth.getSession()
             if (!session) throw new Error('Not authenticated')
 
-            // Convert expiry_time (HH:MM) ke ISO string
             const expiryDatetime = form.expiry_time ? timeToISO(form.expiry_time) : null
 
-            // Insert ke Supabase langsung dari frontend
-            // (bypass Flask untuk operasi sederhana ini)
             const { error } = await supabase.from('surplus_products').insert({
                 partner_id: session.user.id,
                 product_name: form.product_name,
@@ -251,7 +252,6 @@ export default function AddSurplusPage() {
         router.refresh()
     }
 
-    // AI Button component
     const AIButton = ({ onClick, isLoading, label = 'Generate AI' }: {
         onClick: () => void
         isLoading: boolean
@@ -339,7 +339,6 @@ export default function AddSurplusPage() {
                 <main className="flex-1 overflow-y-auto p-6">
                     <div className="max-w-3xl mx-auto">
 
-                        {/* Breadcrumb + Back */}
                         <div className="mb-5">
                             <div className="flex items-center gap-2 mb-1">
                                 <Link href="/dashboard/partner/surplus"
@@ -448,33 +447,23 @@ export default function AddSurplusPage() {
                                 </div>
                             </div>
 
-                            {/* Production Time + Expiry Time — FORMAT 24H ────────────── */}
+                            {/* Production Time + Expiry Time */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-800 mb-1.5">
                                         Production Time
                                         <span className="ml-1 text-xs text-gray-400 font-normal">(Format 24h)</span>
                                     </label>
-                                    {/* 
-                                        input type="time" native browser time picker
-                                        Selalu format 24h di semua browser modern
-                                        Tidak perlu library tambahan!
-                                    */}
                                     <div className="relative">
                                         <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
                                             <Clock size={15} className="text-gray-400" />
                                         </div>
-                                        <input
-                                            type="time"
-                                            value={form.production_time}
+                                        <input type="time" value={form.production_time}
                                             onChange={e => updateForm('production_time', e.target.value)}
-                                            className={`${inputBase} pl-10`}
-                                            style={{ colorScheme: 'light' }}
-                                        />
+                                            className={`${inputBase} pl-10`} style={{ colorScheme: 'light' }} />
                                     </div>
                                     <p className="text-[10px] text-gray-400 mt-1">Jam berapa makanan ini diproduksi</p>
                                 </div>
-
                                 <div>
                                     <div className="flex items-center justify-between mb-1.5">
                                         <label className="text-sm font-semibold text-gray-800">
@@ -487,13 +476,10 @@ export default function AddSurplusPage() {
                                         <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
                                             <Clock size={15} className={aiLoading.expiry ? 'text-[#c8e84a]' : 'text-gray-400'} />
                                         </div>
-                                        <input
-                                            type="time"
-                                            value={form.expiry_time}
+                                        <input type="time" value={form.expiry_time}
                                             onChange={e => updateForm('expiry_time', e.target.value)}
                                             className={`${inputBase} pl-10 ${aiLoading.expiry ? 'ai-loading' : ''}`}
-                                            style={{ colorScheme: 'light' }}
-                                        />
+                                            style={{ colorScheme: 'light' }} />
                                     </div>
                                     <p className="text-[10px] text-gray-400 mt-1">Batas aman konsumsi (jam)</p>
                                 </div>
@@ -513,6 +499,7 @@ export default function AddSurplusPage() {
                                 <div>
                                     <div className="flex items-center justify-between mb-1.5">
                                         <label className="text-sm font-semibold text-gray-800">Plate Up Price</label>
+                                        {/* Tombol ini trigger handleGenerateExpiry karena price dihasilkan barengan expiry */}
                                         <AIButton onClick={handleGenerateExpiry} isLoading={aiLoading.price} />
                                     </div>
                                     <div className="relative">

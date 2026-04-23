@@ -1,15 +1,10 @@
-# backend/routes/surplus.py
-import os, json, time
+import os, json, time, re
+from datetime import datetime, timedelta
 from flask import request, jsonify
 
-# Rate limiter sederhana — prevent spam ke Gemini API
 _last_ai_call = 0
 
 def _call_gemini(prompt: str) -> str:
-    """
-    Wrapper Gemini dengan rate limiting.
-    Minimal 3 detik antar call supaya tidak kena 429.
-    """
     global _last_ai_call
     now = time.time()
     wait = 3 - (now - _last_ai_call)
@@ -26,98 +21,158 @@ def _call_gemini(prompt: str) -> str:
     return response.text.strip()
 
 
+def _round_to_500(price: float) -> int:
+    return int(round(price / 500) * 500)
+
+
 def register_surplus_routes(app, supabase, require_auth):
 
-    # ── POST /api/ai/generate-expiry ────────────────────────────
     @app.route('/api/ai/generate-expiry', methods=['POST'])
     @require_auth
     def generate_expiry(user):
         data            = request.get_json()
-        product_name    = data.get('product_name', '')
-        category        = data.get('category', '')
-        production_time = data.get('production_time', '')
+        product_name    = data.get('product_name', '').strip()
+        category        = data.get('category', '').strip()
+        production_time = data.get('production_time', '').strip()
         original_price  = float(data.get('original_price', 0) or 0)
 
+        now = datetime.now()
         try:
-            prompt = f"""Kamu pakar food safety. Analisis produk surplus:
-Produk: {product_name}, Kategori: {category}, Waktu produksi: {production_time}, Harga asli: Rp {original_price}
+            prod_hour, prod_min = map(int, production_time.split(':'))
+            prod_dt = now.replace(hour=prod_hour, minute=prod_min, second=0)
+            if prod_dt > now:
+                prod_dt -= timedelta(days=1)
+            elapsed_hours = (now - prod_dt).total_seconds() / 3600
+        except Exception:
+            elapsed_hours = 0
 
-Balas HANYA JSON ini tanpa markdown:
-{{"expiry_estimate": "Konsumsi sebelum pukul 20.00", "plate_up_price": 9000}}
+        shelf_life_map = {
+            'Rice': 6, 'Noodles': 5, 'Bread': 12, 'Snack': 24,
+            'Beverage': 8, 'Dessert': 8, 'Salad': 4, 'Meat': 4,
+        }
+        max_shelf = 6
+        for key, val in shelf_life_map.items():
+            if key.lower() in category.lower():
+                max_shelf = val
+                break
 
-plate_up_price harus integer rupiah, 50-60% dari harga asli."""
+        remaining_hours = max(0.5, max_shelf - elapsed_hours)
+        latest_safe = now + timedelta(hours=remaining_hours)
+        latest_safe_str = latest_safe.strftime('%H:%M')
+
+        plate_up_price_floor = _round_to_500(original_price * 0.5)
+        plate_up_price_ceil  = _round_to_500(original_price * 0.6)
+
+        try:
+            prompt = f"""Kamu adalah sistem food safety otomatis untuk PlateUp, platform surplus food Indonesia.
+
+KONTEKS SAAT INI:
+- Waktu sekarang: {now.strftime('%H:%M')} WIB
+- Produk: {product_name}
+- Kategori makanan: {category}
+- Diproduksi pada: {production_time} WIB
+- Sudah berlalu: {elapsed_hours:.1f} jam sejak produksi
+- Harga asli: Rp {int(original_price):,}
+
+ATURAN WAJIB:
+1. expiry_time HARUS format "HH:MM" (24 jam), contoh: "19:30"
+2. expiry_time TIDAK BOLEH lebih dari {latest_safe_str} WIB (batas aman food safety)
+3. expiry_time TIDAK BOLEH sebelum waktu sekarang ({now.strftime('%H:%M')} WIB)
+4. plate_up_price HARUS kelipatan 500, antara Rp {plate_up_price_floor:,} dan Rp {plate_up_price_ceil:,}
+5. plate_up_price HARUS integer, bukan desimal
+
+Balas HANYA JSON berikut, tanpa penjelasan, tanpa markdown:
+{{"expiry_time": "HH:MM", "plate_up_price": 0}}"""
 
             raw = _call_gemini(prompt)
-            raw = raw.replace('```json', '').replace('```', '').strip()
-            start = raw.find('{')
-            end   = raw.rfind('}') + 1
-            result = json.loads(raw[start:end])
-            print(f"[AI] expiry OK: {result}")
+            raw = re.sub(r'```(?:json)?', '', raw).strip()
+            match = re.search(r'\{.*?\}', raw, re.DOTALL)
+            result = json.loads(match.group())
 
+            expiry_time = str(result.get('expiry_time', latest_safe_str))
+            if not re.match(r'^\d{2}:\d{2}$', expiry_time):
+                expiry_time = latest_safe_str
+
+            plate_up_price = int(result.get('plate_up_price', 0))
+            if not (plate_up_price_floor <= plate_up_price <= plate_up_price_ceil):
+                plate_up_price = _round_to_500(original_price * 0.55)
+
+            print(f"[AI] expiry OK → expiry: {expiry_time}, price: {plate_up_price}")
             return jsonify({
-                'expiry_estimate': str(result.get('expiry_estimate', 'Konsumsi dalam 2 jam')),
-                'plate_up_price':  int(result.get('plate_up_price', int(original_price * 0.55)))
+                'expiry_time':    expiry_time,
+                'plate_up_price': plate_up_price
             }), 200
 
         except Exception as e:
             print(f"[AI] expiry fallback: {type(e).__name__}: {e}")
-            # Smart fallback berdasarkan production_time
-            expiry_map = {
-                'Just cooked': 'Konsumsi sebelum pukul 22.00',
-                '30 min':      'Konsumsi sebelum pukul 21.00',
-                '1 - 2':       'Konsumsi sebelum pukul 20.00',
-                '2 - 3':       'Konsumsi sebelum pukul 19.00',
-                '3+':          'Segera dikonsumsi, maks 2 jam lagi',
-            }
-            expiry = 'Konsumsi dalam 2 jam'
-            for key, val in expiry_map.items():
-                if key in production_time:
-                    expiry = val
-                    break
             return jsonify({
-                'expiry_estimate': expiry,
-                'plate_up_price':  int(original_price * 0.55)
+                'expiry_time':    latest_safe_str,
+                'plate_up_price': _round_to_500(original_price * 0.55)
             }), 200
 
 
-    # ── POST /api/ai/generate-description ───────────────────────
     @app.route('/api/ai/generate-description', methods=['POST'])
     @require_auth
     def generate_description(user):
         data           = request.get_json()
-        product_name   = data.get('product_name', '')
-        category       = data.get('category', '')
+        product_name   = data.get('product_name', '').strip()
+        category       = data.get('category', '').strip()
         original_price = float(data.get('original_price', 0) or 0)
+        plate_up_price = float(data.get('plate_up_price', 0) or 0)
+        expiry_time    = data.get('expiry_time', '').strip()
+
+        discount_pct = 0
+        if original_price > 0 and plate_up_price > 0:
+            discount_pct = round((1 - plate_up_price / original_price) * 100)
 
         try:
-            prompt = f"""Buat deskripsi produk surplus makanan, maksimal 2 kalimat.
-Produk: {product_name}, Kategori: {category}, Harga: Rp {original_price}
-Fokus pada kondisi makanan dan nilai bagi pembeli. Bahasa Indonesia natural.
-Balas HANYA teks deskripsinya."""
+            prompt = f"""Kamu copywriter untuk PlateUp, aplikasi surplus food Indonesia yang membantu mengurangi food waste.
+
+PRODUK YANG DIJUAL:
+- Nama: {product_name}
+- Kategori: {category}
+- Harga asli: Rp {int(original_price):,}
+- Harga PlateUp: Rp {int(plate_up_price):,} (hemat {discount_pct}%)
+- Batas konsumsi: sebelum pukul {expiry_time} WIB
+
+TUGAS:
+Tulis deskripsi produk surplus dalam Bahasa Indonesia yang natural dan mengajak beli.
+Maksimal 2 kalimat.
+
+ATURAN KETAT:
+- Gunakan HANYA Bahasa Indonesia, tidak boleh ada kata Inggris
+- Kalimat pertama: kondisi/kualitas makanan sekarang
+- Kalimat kedua: nilai/keuntungan beli (harga hemat ATAU batas waktu sebagai urgensi)
+- Jangan gunakan kata: "lezat", "nikmat", "mantap", "yummy", "fresh" (terlalu generik)
+- Nada: hangat, jujur, tidak lebay
+- Jangan sebut nama produk lagi di deskripsi (sudah ada di judul)
+
+CONTOH OUTPUT YANG BENAR:
+"Masih dalam kondisi hangat dan baru matang, disimpan dalam wadah tertutup. Dapatkan dengan harga Rp {int(plate_up_price):,} — hemat {discount_pct}% dari harga normal sebelum pukul {expiry_time}."
+
+Balas HANYA teks deskripsinya saja, tanpa tanda kutip, tanpa penjelasan."""
 
             desc = _call_gemini(prompt)
-            print(f"[AI] description OK: {desc[:50]}")
+            desc = desc.strip('"\'')
+            print(f"[AI] description OK: {desc[:60]}")
             return jsonify({'description': desc}), 200
 
         except Exception as e:
             print(f"[AI] description fallback: {type(e).__name__}: {e}")
-            # Smart fallback
-            fallbacks = {
-                'Noodles': f'{product_name} masih dalam kondisi hangat dan segar, cocok dikonsumsi segera.',
-                'Rice':    f'{product_name} baru matang, disimpan dalam kondisi tertutup rapat.',
-                'Bread':   f'{product_name} masih lembut dan segar dari oven, terbaik dikonsumsi hari ini.',
-                'Snack':   f'{product_name} dalam kondisi baik, dikemas higienis untuk kamu.',
-                'Bever':   f'{product_name} segar dan siap minum, disimpan dalam suhu dingin.',
-            }
-            desc = f'{product_name} dalam kondisi baik dan layak konsumsi, dijual dengan harga spesial hari ini.'
-            for key, val in fallbacks.items():
-                if key.lower() in category.lower():
-                    desc = val
-                    break
+            cat_lower = category.lower()
+            if 'rice' in cat_lower:
+                desc = f"Nasi masih hangat dan baru matang, disimpan dalam wadah tertutup rapat. Bisa kamu dapatkan dengan harga spesial Rp {int(plate_up_price):,} sebelum pukul {expiry_time}."
+            elif 'noodle' in cat_lower:
+                desc = f"Mie masih dalam kondisi baik dan baru dimasak, cocok langsung disantap. Ambil sekarang dengan harga Rp {int(plate_up_price):,}, hemat {discount_pct}% dari harga normal."
+            elif 'bread' in cat_lower:
+                desc = f"Roti masih lembut dan segar dari dapur, belum melewati satu hari. Harga spesial Rp {int(plate_up_price):,} untuk kamu yang mau hemat hari ini."
+            elif 'snack' in cat_lower:
+                desc = f"Camilan dalam kondisi baik dan dikemas dengan higienis. Dapatkan dengan harga Rp {int(plate_up_price):,} sebelum pukul {expiry_time}."
+            else:
+                desc = f"Makanan masih dalam kondisi layak konsumsi dan baru disiapkan. Tersedia dengan harga Rp {int(plate_up_price):,}, hemat {discount_pct}% dari harga aslinya."
             return jsonify({'description': desc}), 200
 
 
-    # ── POST /api/surplus/products ───────────────────────────────
     @app.route('/api/surplus/products', methods=['POST'])
     @require_auth
     def create_surplus_product(user):
@@ -168,7 +223,6 @@ Balas HANYA teks deskripsinya."""
             return jsonify({'error': str(e)}), 500
 
 
-    # ── GET /api/surplus/products ────────────────────────────────
     @app.route('/api/surplus/products', methods=['GET'])
     @require_auth
     def get_surplus_products(user):
