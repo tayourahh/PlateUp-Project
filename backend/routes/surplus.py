@@ -1,24 +1,32 @@
-import os, json, time, re
+import os, json, time, re, requests
 from datetime import datetime, timedelta
 from flask import request, jsonify
 
 _last_ai_call = 0
 
-def _call_gemini(prompt: str) -> str:
+def _call_ai(prompt: str) -> str:
     global _last_ai_call
     now = time.time()
-    wait = 3 - (now - _last_ai_call)
+    wait = 2 - (now - _last_ai_call)
     if wait > 0:
         time.sleep(wait)
     _last_ai_call = time.time()
 
-    from google import genai
-    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-    response = client.models.generate_content(
-        model='models/gemini-2.0-flash-lite',
-        contents=prompt
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY')}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": "google/gemini-2.0-flash-lite",
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 500,
+        },
+        timeout=30
     )
-    return response.text.strip()
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"].strip()
 
 
 def _round_to_500(price: float) -> int:
@@ -84,7 +92,7 @@ ATURAN WAJIB:
 Balas HANYA JSON berikut, tanpa penjelasan, tanpa markdown:
 {{"expiry_time": "HH:MM", "plate_up_price": 0}}"""
 
-            raw = _call_gemini(prompt)
+            raw = _call_ai(prompt)
             raw = re.sub(r'```(?:json)?', '', raw).strip()
             match = re.search(r'\{.*?\}', raw, re.DOTALL)
             result = json.loads(match.group())
@@ -152,7 +160,7 @@ CONTOH OUTPUT YANG BENAR:
 
 Balas HANYA teks deskripsinya saja, tanpa tanda kutip, tanpa penjelasan."""
 
-            desc = _call_gemini(prompt)
+            desc = _call_ai(prompt)
             desc = desc.strip('"\'')
             print(f"[AI] description OK: {desc[:60]}")
             return jsonify({'description': desc}), 200
