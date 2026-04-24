@@ -261,8 +261,8 @@ export default function CustomerDashboard() {
                                     href={item.href}
                                     onClick={() => setActiveMenu(item.label)}
                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive
-                                            ? 'bg-[#c8e84a] text-[#2d5a1a] font-semibold'
-                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                        ? 'bg-[#c8e84a] text-[#2d5a1a] font-semibold'
+                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                         }`}
                                 >
                                     <Icon size={18} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-[#2d5a1a]' : 'text-gray-500'} />
@@ -429,27 +429,7 @@ export default function CustomerDashboard() {
                         </div>
                     </div>
 
-                    {/* ── Footer ──────────────────────────────────────────────────────── */}
-                    <footer className="pt-4 pb-2">
-                        <div className="flex flex-wrap gap-x-8 gap-y-2 text-xs text-gray-400 mb-4">
-                            <div className="flex flex-col gap-1">
-                                <Link href="#" className="hover:text-gray-600">Our Project</Link>
-                                <Link href="#" className="hover:text-gray-600">About Us</Link>
-                                <Link href="#" className="hover:text-gray-600">Contact US</Link>
-                                <Link href="#" className="hover:text-gray-600">Blog</Link>
-                                <Link href="#" className="hover:text-gray-600">FAQ</Link>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <Link href="#" className="hover:text-gray-600">Partner Dashboard</Link>
-                                <Link href="#" className="hover:text-gray-600">Explore Food</Link>
-                                <Link href="#" className="hover:text-gray-600">Terms & Conditions</Link>
-                                <Link href="#" className="hover:text-gray-600">Privacy Policy</Link>
-                            </div>
-                        </div>
-                        <p className="text-[10px] text-gray-300">
-                            © 2026 PlateUp! | Developed by PlateUp! – Team 3 | Compete Mate 2026 | Google Developer Community on Gunadarma University
-                        </p>
-                    </footer>
+
 
                 </main>
             </div>
