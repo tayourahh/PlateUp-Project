@@ -187,10 +187,18 @@ export default function SettingPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-[#d4e8c2] border-2 border-[#3a7d44] flex items-center justify-center text-[#3a7d44] text-sm font-bold">
-                        {initials}
+                    <button className="w-9 h-9 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition-colors">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                        </svg>
+                    </button>
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-[#d4e8c2] border-2 border-[#3a7d44] flex items-center justify-center text-[#3a7d44] text-sm font-bold">
+                            {initials}
+                        </div>
+                        <span className="text-sm font-medium text-gray-800 hidden md:block">{firstName}</span>
                     </div>
-                    <span className="text-sm font-medium text-gray-800 hidden md:block">{firstName}</span>
                 </div>
             </header>
 
