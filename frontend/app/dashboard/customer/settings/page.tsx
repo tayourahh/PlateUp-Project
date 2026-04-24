@@ -210,7 +210,7 @@ export default function CustomerSettingPage() {
                                 { label: 'Email Address', key: 'email', type: 'email', disabled: true },
                             ].map(field => (
                                 <div key={field.key} className="mb-4">
-                                    <label className="block text-sm text-gray-500 mb-1">{field.label}</label>
+                                    <label className="block text-sm text-black mb-1">{field.label}</label>
                                     <input
                                         type={field.type}
                                         value={profile[field.key as keyof typeof profile]}
