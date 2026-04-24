@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Home, ClipboardList, BarChart2, Settings, LogOut } from 'lucide-react'
+import { Home, ClipboardList, Settings, LogOut } from 'lucide-react'
+import FoodOrderModal from '../FoodOrderModal'
 
 const menuItems = [
     { label: 'Home', href: '/dashboard/customer', icon: Home },
@@ -23,13 +24,33 @@ type PickupOrder = {
     ordered_at: string
 }
 
+type SurplusProduct = {
+    id: string
+    partner_id: string
+    product_name: string
+    category: string
+    production_time: string
+    expiry_estimate: string
+    original_price: number
+    plate_up_price: number
+    description: string
+    image_url: string | null
+    status: string
+    is_draft: boolean
+    created_at: string
+    updated_at: string
+    expiry_datetime: string
+    quantity: number
+    partner_name?: string
+    partner_address?: string
+}
+
 const statusStyle: Record<string, string> = {
     'Pickup Ready': 'bg-[#3a7d44] text-white',
     'Cancelled': 'bg-gray-100 text-gray-500',
     'Completed': 'bg-[#c8e6c9] text-[#2d6435]',
 }
 
-// ─── Dummy data ──────────────────────────────────────────────────────────────
 const banners = [
     { src: '/images/banner-1.jpg', alt: 'Promo 1' },
     { src: '/images/banner-2.jpg', alt: 'Promo 2' },
@@ -37,84 +58,14 @@ const banners = [
 ]
 
 const foodCategories = [
-    { label: 'Noodles & Pasta', src: '/images/cat-noodles.png' },
-    { label: 'Rice Meals', src: '/images/cat-rice.png' },
-    { label: 'Bakery & Pastry', src: '/images/cat-bakery.png' },
-    { label: 'Fried Snacks', src: '/images/cat-fried.png' },
-    { label: 'Steamed Dimsum', src: '/images/cat-dimsum.png' },
-    { label: 'Side Dishes', src: '/images/cat-side.png' },
-    { label: 'Traditional Snacks', src: '/images/cat-traditional.png' },
+    { label: 'Noodles & Pasta', src: '/images/cat-noodles.jpg' },
+    { label: 'Rice Meals', src: '/images/cat-rice.jpg' },
+    { label: 'Bakery & Pastry', src: '/images/cat-bakery.jpg' },
+    { label: 'Fried Snacks', src: '/images/cat-fried.jpg' },
+    { label: 'Steamed Dimsum', src: '/images/cat-dimsum.jpg' },
+    { label: 'Side Dishes', src: '/images/cat-side.jpg' },
+    { label: 'Traditional Snacks', src: '/images/cat-traditional.jpg' },
 ]
-
-const forYouItems = [
-    {
-        name: 'Sushi Salmon Mentai, Sushi Mate',
-        dist: '0.4 km', rating: 4.9,
-        status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
-        pickup: 'Pick-up before 21.00 WIB',
-        src: '/images/food-sushi.png',
-    },
-    {
-        name: 'Nasi Ayam Bakar Madu, Warung Bu Sri',
-        dist: '1.1 km', rating: 4.8,
-        status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
-        pickup: 'Pick-up before 20.30 WIB',
-        src: '/images/food-ayam-bakar.png',
-    },
-    {
-        name: 'Mie Ayam Pangsit, Bakmi Bangka',
-        dist: '0.9 km', rating: 4.7,
-        status: 'Heat & Eat', statusColor: 'bg-[#f59e0b]',
-        pickup: 'Pick-up before 21.00 WIB',
-        src: '/images/food-mie-ayam.png',
-    },
-    {
-        name: 'Nasi Goreng Spesial, Pak Budi',
-        dist: '0.6 km', rating: 4.6,
-        status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
-        pickup: 'Pick-up before 21.00 WIB',
-        src: '/images/food-nasgor.png',
-    },
-    {
-        name: 'Ayam Geprek Sambal Bawang',
-        dist: '1.3 km', rating: 4.5,
-        status: 'Heat & Eat', statusColor: 'bg-[#f59e0b]',
-        pickup: 'Pick-up before 20.00 WIB',
-        src: '/images/food-geprek.png',
-    },
-]
-
-const upcomingClosingItems = [
-    {
-        name: 'Salmon Teriyaki Bento, Tokyo Soul',
-        dist: '0.6 km', rating: 4.8,
-        status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
-        pickup: 'Pick-up before 21.00 WIB',
-        src: '/images/food-salmon-bento.png',
-    },
-    {
-        name: 'Beef Kwetiau Siram, Aheng Seafood',
-        dist: '1.1 km', rating: 4.7,
-        status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
-        pickup: 'Pick-up before 20.30 WIB',
-        src: '/images/food-kwetiau.png',
-    },
-    {
-        name: 'Ayam Geprek Sambal Matah, Geprek Juara',
-        dist: '0.8 km', rating: 4.9,
-        status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
-        pickup: 'Pick-up before 19.00 WIB',
-        src: '/images/food-geprek-matah.png',
-    },
-    {
-        name: "Lasagna Al Forno'damn, Mie Pasta",
-        dist: '2.4 km', rating: 4.9,
-        status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
-        pickup: 'Pick-up before 22.00 WIB',
-        src: '/images/food-lasagna.png',
-    },
-]
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function CustomerDashboard() {
     const supabase = createClient()
@@ -125,8 +76,14 @@ export default function CustomerDashboard() {
     const [recentOrders, setRecentOrders] = useState<PickupOrder[]>([])
     const [ordersLoading, setOrdersLoading] = useState(true)
     const [search, setSearch] = useState('')
-    const [activeMenu, setActiveMenu] = useState('My Orders')
+    const [activeMenu, setActiveMenu] = useState('Home')
     const [notifOpen, setNotifOpen] = useState(false)
+
+    const [forYouItems, setForYouItems] = useState<SurplusProduct[]>([])
+    const [upcomingItems, setUpcomingItems] = useState<SurplusProduct[]>([])
+    const [productsLoading, setProductsLoading] = useState(true)
+
+    const [selectedFood, setSelectedFood] = useState<SurplusProduct | null>(null)
 
     useEffect(() => {
         const getProfile = async () => {
@@ -149,6 +106,7 @@ export default function CustomerDashboard() {
             setProfile({ ...profileData, full_name: name })
             setLoading(false)
             fetchRecentOrders(session.user.id)
+            fetchSurplusProducts()
         }
         getProfile()
     }, [])
@@ -163,6 +121,30 @@ export default function CustomerDashboard() {
             .limit(4)
         if (!error && data) setRecentOrders(data as PickupOrder[])
         setOrdersLoading(false)
+    }
+
+    const fetchSurplusProducts = async () => {
+        setProductsLoading(true)
+        const { data, error } = await supabase
+            .from('surplus_products')
+            .select('*')
+            .eq('is_draft', false)
+            .gt('quantity', 0)
+            .order('created_at', { ascending: false })
+
+        if (!error && data) {
+            const products = data as SurplusProduct[]
+            setForYouItems(products.slice(0, 5))
+            const sorted = [...products].sort((a, b) =>
+                new Date(a.expiry_datetime).getTime() - new Date(b.expiry_datetime).getTime()
+            )
+            setUpcomingItems(sorted.slice(0, 4))
+        }
+        setProductsLoading(false)
+    }
+
+    const handleOrderSuccess = () => {
+        if (profile?.id) fetchRecentOrders(profile.id)
     }
 
     const handleLogout = async () => {
@@ -180,15 +162,79 @@ export default function CustomerDashboard() {
     const firstName = profile?.full_name?.split(' ')[0] ?? 'User'
     const initials = profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U'
 
+    const ForYouCard = ({ food }: { food: SurplusProduct }) => (
+        <div
+            onClick={() => setSelectedFood(food)}
+            className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer flex-shrink-0 w-52"
+        >
+            <div className="h-32 relative">
+                {food.image_url
+                    ? <Image src={food.image_url} alt={food.product_name} fill className="object-cover" />
+                    : <div className="w-full h-full bg-gray-100 flex items-center justify-center text-4xl">🍱</div>
+                }
+                <span className="absolute top-2 left-2 bg-[#3a7d44] text-white text-[10px] font-medium px-2 py-0.5 rounded-full">
+                    {food.status || 'Ready to Eat'}
+                </span>
+                <span className="absolute top-2 right-2 text-[10px] text-gray-700 bg-white/90 rounded-full px-2 py-0.5">
+                    📍 — km
+                </span>
+            </div>
+            <div className="p-3">
+                <p className="text-sm font-medium text-gray-900 line-clamp-2">{food.product_name}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">Pick-up before {food.production_time || '21.00 WIB'}</p>
+                <div className="flex items-center justify-between mt-1">
+                    <p className="text-[11px] text-[#3a7d44] font-semibold">
+                        Rp {Number(food.plate_up_price).toLocaleString('id-ID')}
+                    </p>
+                    <p className="text-[11px] text-gray-400">{food.quantity} left</p>
+                </div>
+            </div>
+        </div>
+    )
+
+    const UpcomingCard = ({ food }: { food: SurplusProduct }) => (
+        <div
+            onClick={() => setSelectedFood(food)}
+            className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer flex flex-row"
+        >
+            <div className="relative w-28 flex-shrink-0 min-h-[96px]">
+                {food.image_url
+                    ? <Image src={food.image_url} alt={food.product_name} fill className="object-cover" />
+                    : <div className="w-full h-full bg-gray-100 flex items-center justify-center text-3xl">🍱</div>
+                }
+                <span className="absolute top-2 left-2 bg-[#3a7d44] text-white text-[10px] font-medium px-2 py-0.5 rounded-full">
+                    {food.status || 'Ready to Eat'}
+                </span>
+            </div>
+            <div className="p-3 flex flex-col justify-center">
+                <p className="text-sm font-medium text-gray-900 line-clamp-2">{food.product_name}</p>
+                <p className="text-[11px] text-gray-400 mt-1">📍 — km</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">Pick-up before {food.production_time || '21.00 WIB'}</p>
+                <p className="text-[11px] text-[#3a7d44] font-semibold mt-1">
+                    Rp {Number(food.plate_up_price).toLocaleString('id-ID')}
+                </p>
+            </div>
+        </div>
+    )
+
+    const FoodCardSkeleton = () => (
+        <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 flex-shrink-0 w-52 animate-pulse">
+            <div className="h-32 bg-gray-100" />
+            <div className="p-3 space-y-2">
+                <div className="h-3 bg-gray-100 rounded w-4/5" />
+                <div className="h-2.5 bg-gray-100 rounded w-3/5" />
+                <div className="h-2.5 bg-gray-100 rounded w-2/5" />
+            </div>
+        </div>
+    )
+
     return (
         <div className="min-h-screen flex flex-col bg-[#f5f5f5]">
 
-            {/* ── HEADER ─────────────────────────────────────────────────────────── */}
             <header className="w-full bg-white px-6 py-3 flex items-center gap-4 border-b border-gray-100 sticky top-0 z-40">
                 <Link href="/" className="shrink-0">
                     <Image src="/logo-plateup.png" alt="PlateUp!" width={110} height={34} className="object-contain" />
                 </Link>
-
                 <div className="flex-1 max-w-xl mx-auto">
                     <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 gap-2">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5">
@@ -203,9 +249,7 @@ export default function CustomerDashboard() {
                         />
                     </div>
                 </div>
-
                 <div className="flex items-center gap-3 shrink-0">
-                    {/* Notification bell */}
                     <div className="relative">
                         <button
                             onClick={() => setNotifOpen(!notifOpen)}
@@ -224,8 +268,6 @@ export default function CustomerDashboard() {
                             </div>
                         )}
                     </div>
-
-                    {/* Avatar */}
                     <div className="flex items-center gap-2 cursor-pointer">
                         <div className="w-8 h-8 rounded-full bg-[#d4e8c2] border-2 border-[#3a7d44] flex items-center justify-center text-[#3a7d44] text-sm font-bold">
                             {initials}
@@ -235,10 +277,7 @@ export default function CustomerDashboard() {
                 </div>
             </header>
 
-            {/* ── BODY ───────────────────────────────────────────────────────────── */}
             <div className="flex flex-1 overflow-hidden">
-
-                {/* ── SIDEBAR ──────────────────────────────────────────────────────── */}
                 <aside className="w-52 bg-white border-r border-gray-100 flex flex-col py-5 px-3 shrink-0">
                     <div className="flex items-center gap-2 px-2 mb-5">
                         <div className="w-9 h-9 rounded-full bg-[#d4e8c2] flex items-center justify-center text-[#3a7d44] font-bold text-sm shrink-0">
@@ -249,20 +288,13 @@ export default function CustomerDashboard() {
                             <p className="text-xs text-gray-400">Ready to save the planet?</p>
                         </div>
                     </div>
-
                     <nav className="flex flex-col gap-1">
                         {menuItems.map(item => {
                             const Icon = item.icon
                             const isActive = activeMenu === item.label
                             return (
-                                <Link
-                                    key={item.label}
-                                    href={item.href}
-                                    onClick={() => setActiveMenu(item.label)}
-                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive
-                                        ? 'bg-[#c8e84a] text-[#2d5a1a] font-semibold'
-                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                        }`}
+                                <Link key={item.label} href={item.href} onClick={() => setActiveMenu(item.label)}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive ? 'bg-[#c8e84a] text-[#2d5a1a] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
                                 >
                                     <Icon size={18} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-[#2d5a1a]' : 'text-gray-500'} />
                                     {item.label}
@@ -270,22 +302,15 @@ export default function CustomerDashboard() {
                             )
                         })}
                     </nav>
-
                     <div className="mt-auto pt-4 border-t border-gray-100">
-                        <button
-                            onClick={handleLogout}
-                            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-red-400 hover:bg-red-50 transition-colors"
-                        >
+                        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-red-400 hover:bg-red-50 transition-colors">
                             <LogOut size={18} />
                             Logout
                         </button>
                     </div>
                 </aside>
 
-                {/* ── MAIN CONTENT ─────────────────────────────────────────────────── */}
                 <main className="flex-1 overflow-y-auto p-6 space-y-6">
-
-                    {/* Stats */}
                     <div className="grid grid-cols-3 gap-4">
                         {[
                             { label: 'MEALS SHARED', value: '12 Sharing', desc: "You've helped 8 friends find affordable meals." },
@@ -300,7 +325,6 @@ export default function CustomerDashboard() {
                         ))}
                     </div>
 
-                    {/* ── Banner / Promo ──────────────────────────────────────────────── */}
                     <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
                         {banners.map((b, i) => (
                             <div key={i} className="relative flex-shrink-0 w-64 h-32 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer">
@@ -309,7 +333,6 @@ export default function CustomerDashboard() {
                         ))}
                     </div>
 
-                    {/* ── Food Category ───────────────────────────────────────────────── */}
                     <div>
                         <h2 className="text-sm font-semibold text-gray-700 mb-3">Food Category</h2>
                         <div className="flex gap-5 overflow-x-auto pb-2 scrollbar-hide">
@@ -324,65 +347,45 @@ export default function CustomerDashboard() {
                         </div>
                     </div>
 
-                    {/* ── For You ─────────────────────────────────────────────────────── */}
+                    {/* ── For You — now from Supabase, clickable ── */}
                     <div>
                         <h2 className="text-sm font-semibold text-gray-700 mb-3">For You</h2>
                         <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                            {forYouItems.map((food, i) => (
-                                <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow cursor-pointer flex-shrink-0 w-52">
-                                    <div className="h-32 relative">
-                                        <Image src={food.src} alt={food.name} fill className="object-cover" />
-                                        <span className={`absolute top-2 left-2 text-white text-[10px] font-medium px-2 py-0.5 rounded-full ${food.statusColor}`}>
-                                            {food.status}
-                                        </span>
-                                        <span className="absolute top-2 right-2 text-[10px] text-gray-700 bg-white/90 rounded-full px-2 py-0.5">
-                                            📍 {food.dist}
-                                        </span>
-                                    </div>
-                                    <div className="p-3">
-                                        <p className="text-sm font-medium text-gray-900 line-clamp-2">{food.name}</p>
-                                        <p className="text-[11px] text-gray-400 mt-0.5">{food.pickup}</p>
-                                        <p className="text-[11px] text-[#3a7d44] font-medium mt-1">⭐ {food.rating}</p>
-                                    </div>
-                                </div>
-                            ))}
+                            {productsLoading
+                                ? Array.from({ length: 4 }).map((_, i) => <FoodCardSkeleton key={i} />)
+                                : forYouItems.length > 0
+                                    ? forYouItems.map(food => <ForYouCard key={food.id} food={food} />)
+                                    : <p className="text-sm text-gray-400 py-4">No items available.</p>
+                            }
                         </div>
                     </div>
 
-                    {/* ── Upcoming Closing ────────────────────────────────────────────── */}
+                    {/* ── Upcoming Closing — now from Supabase, clickable ── */}
                     <div>
                         <h2 className="text-sm font-semibold text-gray-700 mb-3">Upcoming Closing</h2>
-                        <div className="grid grid-cols-2 gap-4">
-                            {upcomingClosingItems.map((food, i) => (
-                                <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow cursor-pointer flex flex-row">
-                                    <div className="relative w-28 flex-shrink-0">
-                                        <Image src={food.src} alt={food.name} fill className="object-cover" />
-                                        <span className={`absolute top-2 left-2 text-white text-[10px] font-medium px-2 py-0.5 rounded-full ${food.statusColor}`}>
-                                            {food.status}
-                                        </span>
-                                    </div>
-                                    <div className="p-3 flex flex-col justify-center">
-                                        <p className="text-sm font-medium text-gray-900 line-clamp-2">{food.name}</p>
-                                        <p className="text-[11px] text-gray-400 mt-1">📍 {food.dist}</p>
-                                        <p className="text-[11px] text-gray-400 mt-0.5">{food.pickup}</p>
-                                        <p className="text-[11px] text-[#3a7d44] font-medium mt-1">⭐ {food.rating}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        {productsLoading ? (
+                            <div className="grid grid-cols-2 gap-4">
+                                {Array.from({ length: 4 }).map((_, i) => (
+                                    <div key={i} className="bg-white rounded-2xl h-24 animate-pulse border border-gray-100" />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-4">
+                                {upcomingItems.length > 0
+                                    ? upcomingItems.map(food => <UpcomingCard key={food.id} food={food} />)
+                                    : <p className="text-sm text-gray-400 col-span-2">No upcoming closing items.</p>
+                                }
+                            </div>
+                        )}
                     </div>
 
-                    {/* ── Recently Orders ─────────────────────────────────────────────── */}
+                    {/* ── Recently Orders ── */}
                     <div className="bg-white rounded-2xl border border-gray-200">
                         <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
                             <h2 className="text-sm font-semibold text-gray-700">Recently Orders</h2>
-                            <Link href="/dashboard/customer/orders" className="text-xs text-[#3a7d44] font-medium hover:underline">
-                                See all
-                            </Link>
+                            <Link href="/dashboard/customer/orders" className="text-xs text-[#3a7d44] font-medium hover:underline">See all</Link>
                         </div>
-
                         <div className="divide-y divide-gray-50 overflow-y-auto max-h-64">
-                            {/* Skeleton */}
                             {ordersLoading && Array.from({ length: 3 }).map((_, i) => (
                                 <div key={i} className="flex items-center justify-between px-5 py-3.5 animate-pulse">
                                     <div className="flex items-center gap-3">
@@ -395,15 +398,11 @@ export default function CustomerDashboard() {
                                     <div className="h-6 w-20 bg-gray-100 rounded-full" />
                                 </div>
                             ))}
-
-                            {/* Empty */}
                             {!ordersLoading && recentOrders.length === 0 && (
                                 <div className="px-5 py-8 text-center">
                                     <p className="text-sm text-gray-400">Belum ada pesanan.</p>
                                 </div>
                             )}
-
-                            {/* Rows */}
                             {!ordersLoading && recentOrders.map((order) => (
                                 <div key={order.id} className="flex items-center justify-between px-5 py-3.5">
                                     <div className="flex items-center gap-3">
@@ -427,11 +426,18 @@ export default function CustomerDashboard() {
                             ))}
                         </div>
                     </div>
-
-
-
                 </main>
             </div>
+
+            {/* ── Order Modal ── */}
+            {selectedFood && (
+                <FoodOrderModal
+                    food={selectedFood}
+                    onClose={() => setSelectedFood(null)}
+                    customerId={profile?.id}
+                    onOrderSuccess={handleOrderSuccess}
+                />
+            )}
         </div>
     )
 }
