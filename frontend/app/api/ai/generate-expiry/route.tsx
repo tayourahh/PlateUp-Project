@@ -1,5 +1,73 @@
 import { NextRequest, NextResponse } from "next/server";
 
+type ShelfLifeRule = {
+    minHours: number;
+    maxHours: number;
+};
+
+function parseHHMMToMinutes(value: string): number | null {
+    const match = value.match(/^(\d{2}):(\d{2})$/);
+    if (!match) return null;
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    return hour * 60 + minute;
+}
+
+function formatMinutesToHHMM(totalMinutes: number): string {
+    const dayMinutes = 24 * 60;
+    const normalized = ((totalMinutes % dayMinutes) + dayMinutes) % dayMinutes;
+    const hour = Math.floor(normalized / 60)
+        .toString()
+        .padStart(2, "0");
+    const minute = (normalized % 60).toString().padStart(2, "0");
+    return `${hour}:${minute}`;
+}
+
+function getShelfLifeRule(
+    productName: string,
+    category?: string,
+): ShelfLifeRule {
+    const target = `${productName} ${category ?? ""}`.toLowerCase();
+
+    // Bakery goods generally have short safe selling windows.
+    if (/roti|bread|cake|pastry|bakery|donut|croissant/.test(target)) {
+        return { minHours: 2, maxHours: 8 };
+    }
+
+    if (/nasi|rice|ayam|chicken|daging|meal|lauk|masakan/.test(target)) {
+        return { minHours: 2, maxHours: 12 };
+    }
+
+    if (/minuman|drink|beverage|jus|juice|kopi|teh/.test(target)) {
+        return { minHours: 2, maxHours: 24 };
+    }
+
+    return { minHours: 2, maxHours: 16 };
+}
+
+function clampExpiryTime(
+    aiExpiryTime: string,
+    productionTime: string,
+    rule: ShelfLifeRule,
+): string | null {
+    const productionMinutes = parseHHMMToMinutes(productionTime);
+    const aiMinutesRaw = parseHHMMToMinutes(aiExpiryTime);
+
+    if (productionMinutes === null || aiMinutesRaw === null) return null;
+
+    // Treat AI time as same day by default; if it looks earlier than production,
+    // interpret it as crossing midnight to the next day.
+    const aiMinutesAbsolute =
+        aiMinutesRaw < productionMinutes ? aiMinutesRaw + 24 * 60 : aiMinutesRaw;
+
+    const minAllowed = productionMinutes + rule.minHours * 60;
+    const maxAllowed = productionMinutes + rule.maxHours * 60;
+    const clamped = Math.max(minAllowed, Math.min(aiMinutesAbsolute, maxAllowed));
+
+    return formatMinutesToHHMM(clamped);
+}
+
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
@@ -21,6 +89,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "API key missing" }, { status: 500 });
         }
 
+        const shelfLifeRule = getShelfLifeRule(productName, category);
+
         const prompt = `
 Kamu adalah asisten food safety.
 
@@ -29,8 +99,13 @@ Tentukan estimasi waktu kadaluarsa makanan berikut:
 - Kategori: ${category}
 - Waktu produksi: ${productionTime}
 
+    Aturan penting:
+    - Estimasi kadaluarsa harus realistis untuk makanan siap jual.
+    - Gunakan rentang ${shelfLifeRule.minHours}-${shelfLifeRule.maxHours} jam setelah waktu produksi.
+    - Untuk roti/bakery, jangan berikan waktu terlalu lama.
+
 Jawab hanya JSON:
-{ "expiryTime": "HH:MM", "note": "..." }
+    { "expiryTime": "HH:MM", "plateUpPrice": 0, "note": "..." }
 `;
 
         const aiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -92,13 +167,25 @@ Jawab hanya JSON:
             );
         }
 
+        const safeExpiry = clampExpiryTime(
+            validExpiry,
+            productionTime,
+            shelfLifeRule,
+        );
+        if (!safeExpiry) {
+            return NextResponse.json(
+                { error: "Format productionTime atau expiry_time tidak valid" },
+                { status: 400 },
+            );
+        }
+
         const rawPrice =
             Number(parsed.plate_up_price ?? parsed.plateUpPrice ?? 0) || 0;
         const roundedPrice = Math.round(rawPrice / 500) * 500;
         const fallbackPrice = Math.round((originalPrice * 0.55) / 500) * 500;
 
         return NextResponse.json({
-            expiry_time: validExpiry,
+            expiry_time: safeExpiry,
             plate_up_price: roundedPrice > 0 ? roundedPrice : fallbackPrice,
         });
     } catch (err: unknown) {
