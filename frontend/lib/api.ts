@@ -107,3 +107,68 @@ export async function generateAIExpiry(payload: {
         plate_up_price: number
     }>
 }
+
+// =============================================
+// TAMBAHKAN INI KE lib/api.ts YANG SUDAH ADA
+// =============================================
+
+// --- Types ---
+
+export interface DaySchedule {
+    enabled: boolean
+    open: string
+    close: string
+}
+
+export interface OperatingHours {
+    monday: DaySchedule
+    tuesday: DaySchedule
+    wednesday: DaySchedule
+    thursday: DaySchedule
+    friday: DaySchedule
+    saturday: DaySchedule
+    sunday: DaySchedule
+}
+
+export interface StoreProfile {
+    store_name: string
+    business_category: string
+    whatsapp_number: string
+    email: string
+    store_address: string
+    photo_url?: string
+    pickup_lat?: number
+    pickup_lng?: number
+}
+
+export interface StoreSetting {
+    profile: StoreProfile
+    hours: OperatingHours
+    last_edited?: string
+}
+
+// --- API Functions ---
+
+export async function getStoreSetting(): Promise<StoreSetting> {
+    const res = await fetch('/api/partner/store')
+    if (!res.ok) throw new Error('Failed to fetch store setting')
+    return res.json()
+}
+
+export async function updateStoreProfile(data: StoreProfile): Promise<void> {
+    const res = await fetch('/api/partner/store', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error('Failed to update store profile')
+}
+
+export async function updateOperatingHours(data: OperatingHours): Promise<void> {
+    const res = await fetch('/api/partner/store/hours', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error('Failed to update operating hours')
+}
