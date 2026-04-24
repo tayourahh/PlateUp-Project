@@ -87,7 +87,7 @@ export default function Footer() {
             <div className="border-t border-brand-grey">
                 <div className="max-w-6xl mx-auto px-6 md:px-16 py-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                     <p className="text-brand-grey-dark text-xs leading-relaxed">
-                        © 2026 Intersight | Developed by PlateUp! - Team 3 | Compete Mate 2026 |<br />
+                        © 2026 PlateUp! | Developed by PlateUp! - Team 3 | Compete Mate 2026 |<br />
                         Google Developer Community on Gunadarma University
                     </p>
                     <div className="flex gap-4 text-xs text-brand-grey-dark">
