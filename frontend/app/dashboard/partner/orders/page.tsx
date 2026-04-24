@@ -39,7 +39,6 @@ const MENU_ITEMS = [
     { label: 'Dashboard', href: '/dashboard/partner', icon: LayoutDashboard },
     { label: 'Manage Surplus', href: '/dashboard/partner/surplus', icon: Package },
     { label: 'Pickup Orders', href: '/dashboard/partner/orders', icon: ClipboardList },
-    { label: 'Analysis', href: '/dashboard/partner/analysis', icon: BarChart2 },
     { label: 'Setting', href: '/dashboard/partner/settings', icon: Settings },
 ]
 
@@ -65,7 +64,7 @@ function StatusBadge({ status }: { status: PickupStatus }) {
     return (
         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${c.className}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${status === 'ready_for_pickup' ? 'bg-[#c8e84a]' :
-                    status === 'completed' ? 'bg-[#3a7d44]' : 'bg-red-400'
+                status === 'completed' ? 'bg-[#3a7d44]' : 'bg-red-400'
                 }`} />
             {c.label}
         </span>

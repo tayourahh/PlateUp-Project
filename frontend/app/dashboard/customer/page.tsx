@@ -68,6 +68,7 @@ function FoodOrderModal({
         setLoading(true)
         try {
             const { error } = await supabase.from('pickup_orders').insert({
+                order_id: crypto.randomUUID(),
                 customer_id: customerId,
                 partner_id: food.partner_id,
                 product_name: food.product_name,
