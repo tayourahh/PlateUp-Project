@@ -9,7 +9,6 @@ import { Home, ClipboardList, BarChart2, Settings, LogOut } from 'lucide-react'
 const menuItems = [
     { label: 'Home', href: '/dashboard/customer', icon: Home },
     { label: 'My Orders', href: '/dashboard/customer/orders', icon: ClipboardList },
-    { label: 'Impact History', href: '/dashboard/customer/impact', icon: BarChart2 },
     { label: 'Setting', href: '/dashboard/customer/settings', icon: Settings },
 ]
 
