@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Home, ClipboardList, Settings, LogOut } from 'lucide-react'
-import FoodOrderModal from '../FoodOrderModal'
+import FoodOrderModal from '../FoodOrderModal' // adjust import path
 
 const menuItems = [
     { label: 'Home', href: '/dashboard/customer', icon: Home },
@@ -58,13 +58,13 @@ const banners = [
 ]
 
 const foodCategories = [
-    { label: 'Noodles & Pasta', src: '/images/cat-noodles.png' },
-    { label: 'Rice Meals', src: '/images/cat-rice.png' },
-    { label: 'Bakery & Pastry', src: '/images/cat-bakery.png' },
-    { label: 'Fried Snacks', src: '/images/cat-fried.png' },
-    { label: 'Steamed Dimsum', src: '/images/cat-dimsum.png' },
-    { label: 'Side Dishes', src: '/images/cat-side.png' },
-    { label: 'Traditional Snacks', src: '/images/cat-traditional.png' },
+    { label: 'Noodles & Pasta', src: '/images/cat-noodles.jpg' },
+    { label: 'Rice Meals', src: '/images/cat-rice.jpg' },
+    { label: 'Bakery & Pastry', src: '/images/cat-bakery.jpg' },
+    { label: 'Fried Snacks', src: '/images/cat-fried.jpg' },
+    { label: 'Steamed Dimsum', src: '/images/cat-dimsum.jpg' },
+    { label: 'Side Dishes', src: '/images/cat-side.jpg' },
+    { label: 'Traditional Snacks', src: '/images/cat-traditional.jpg' },
 ]
 
 export default function CustomerDashboard() {
@@ -76,7 +76,7 @@ export default function CustomerDashboard() {
     const [recentOrders, setRecentOrders] = useState<PickupOrder[]>([])
     const [ordersLoading, setOrdersLoading] = useState(true)
     const [search, setSearch] = useState('')
-    const [activeMenu, setActiveMenu] = useState('My Orders')
+    const [activeMenu, setActiveMenu] = useState('Home')
     const [notifOpen, setNotifOpen] = useState(false)
 
     const [forYouItems, setForYouItems] = useState<SurplusProduct[]>([])
@@ -84,6 +84,7 @@ export default function CustomerDashboard() {
     const [productsLoading, setProductsLoading] = useState(true)
 
     const [selectedFood, setSelectedFood] = useState<SurplusProduct | null>(null)
+    const [stats, setStats] = useState({ mealsShared: 0, moneySaved: 0, hungryPoints: 0 })
 
     useEffect(() => {
         const getProfile = async () => {
@@ -106,10 +107,29 @@ export default function CustomerDashboard() {
             setProfile({ ...profileData, full_name: name })
             setLoading(false)
             fetchRecentOrders(session.user.id)
+            fetchStats(session.user.id)
             fetchSurplusProducts()
         }
         getProfile()
     }, [])
+
+    const fetchStats = async (userId: string) => {
+        const { data, error } = await supabase
+            .from('pickup_orders')
+            .select('item_count, total_price, status')
+            .eq('customer_id', userId)
+            .neq('status', 'Cancelled')
+
+        if (!error && data) {
+            const mealsShared = data.reduce((sum, o) => sum + (o.item_count ?? 0), 0)
+            // Money saved: we store total_price (plate_up_price × qty)
+            // Estimate saved as 40% of total spent (since avg discount ~40%)
+            const totalSpent = data.reduce((sum, o) => sum + Number(o.total_price ?? 0), 0)
+            const moneySaved = Math.round(totalSpent * 0.4)
+            const hungryPoints = Math.round(moneySaved / 100)
+            setStats({ mealsShared, moneySaved, hungryPoints })
+        }
+    }
 
     const fetchRecentOrders = async (userId: string) => {
         setOrdersLoading(true)
@@ -144,7 +164,10 @@ export default function CustomerDashboard() {
     }
 
     const handleOrderSuccess = () => {
-        if (profile?.id) fetchRecentOrders(profile.id)
+        if (profile?.id) {
+            fetchRecentOrders(profile.id)
+            fetchStats(profile.id)
+        }
     }
 
     const handleLogout = async () => {
@@ -313,9 +336,27 @@ export default function CustomerDashboard() {
                 <main className="flex-1 overflow-y-auto p-6 space-y-6">
                     <div className="grid grid-cols-3 gap-4">
                         {[
-                            { label: 'MEALS SHARED', value: '12 Sharing', desc: "You've helped 8 friends find affordable meals." },
-                            { label: 'MONEY SAVED', value: 'Rp 250.000', desc: 'Extra savings secured for next week.' },
-                            { label: 'HUNGRY POINTS', value: '1.250 Points', desc: 'Nearly ready for your 50% OFF voucher!' },
+                            {
+                                label: 'MEALS SHARED',
+                                value: `${stats.mealsShared} Meals`,
+                                desc: stats.mealsShared > 0
+                                    ? `You've saved ${stats.mealsShared} meals from going to waste!`
+                                    : 'Order your first meal to start saving food!',
+                            },
+                            {
+                                label: 'MONEY SAVED',
+                                value: `Rp ${stats.moneySaved.toLocaleString('id-ID')}`,
+                                desc: stats.moneySaved > 0
+                                    ? 'Great savings from surplus food deals!'
+                                    : 'Start ordering to see your savings here.',
+                            },
+                            {
+                                label: 'HUNGRY POINTS',
+                                value: `${stats.hungryPoints.toLocaleString('id-ID')} Points`,
+                                desc: stats.hungryPoints >= 500
+                                    ? 'Nearly ready for your 50% OFF voucher!'
+                                    : `${Math.max(0, 500 - stats.hungryPoints)} more points to unlock your voucher!`,
+                            },
                         ].map((stat, i) => (
                             <div key={i} className="bg-[#e8f5c8] rounded-2xl p-5">
                                 <p className="text-[10px] font-semibold text-[#5a7a2a] uppercase tracking-widest mb-1">{stat.label}</p>
