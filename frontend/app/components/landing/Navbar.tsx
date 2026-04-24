@@ -9,10 +9,9 @@ import { useEffect, useState } from 'react'
 
 const navLinks = [
     { label: 'Home', href: '/' },
-    { label: 'Dashboard', href: '/dashboard' },
-    { label: 'Order', href: '/order' },
-    { label: 'Impact & Metrics', href: '/impact' },
-    { label: 'About Us', href: '/about' },
+    { label: 'Dashboard', href: '/' },
+    { label: 'Impact & Metrics', href: '/' },
+    { label: 'About Us', href: '/' },
 ]
 
 export default function Navbar() {
