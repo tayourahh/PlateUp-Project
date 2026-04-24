@@ -37,13 +37,13 @@ const banners = [
 ]
 
 const foodCategories = [
-    { label: 'Noodles & Pasta', src: '/images/cat-noodles.jpg' },
-    { label: 'Rice Meals', src: '/images/cat-rice.jpg' },
-    { label: 'Bakery & Pastry', src: '/images/cat-bakery.jpg' },
-    { label: 'Fried Snacks', src: '/images/cat-fried.jpg' },
-    { label: 'Steamed Dimsum', src: '/images/cat-dimsum.jpg' },
-    { label: 'Side Dishes', src: '/images/cat-side.jpg' },
-    { label: 'Traditional Snacks', src: '/images/cat-traditional.jpg' },
+    { label: 'Noodles & Pasta', src: '/images/cat-noodles.png' },
+    { label: 'Rice Meals', src: '/images/cat-rice.png' },
+    { label: 'Bakery & Pastry', src: '/images/cat-bakery.png' },
+    { label: 'Fried Snacks', src: '/images/cat-fried.png' },
+    { label: 'Steamed Dimsum', src: '/images/cat-dimsum.png' },
+    { label: 'Side Dishes', src: '/images/cat-side.png' },
+    { label: 'Traditional Snacks', src: '/images/cat-traditional.png' },
 ]
 
 const forYouItems = [
@@ -52,35 +52,35 @@ const forYouItems = [
         dist: '0.4 km', rating: 4.9,
         status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
         pickup: 'Pick-up before 21.00 WIB',
-        src: '/images/food-sushi.jpg',
+        src: '/images/food-sushi.png',
     },
     {
         name: 'Nasi Ayam Bakar Madu, Warung Bu Sri',
         dist: '1.1 km', rating: 4.8,
         status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
         pickup: 'Pick-up before 20.30 WIB',
-        src: '/images/food-ayam-bakar.jpg',
+        src: '/images/food-ayam-bakar.png',
     },
     {
         name: 'Mie Ayam Pangsit, Bakmi Bangka',
         dist: '0.9 km', rating: 4.7,
         status: 'Heat & Eat', statusColor: 'bg-[#f59e0b]',
         pickup: 'Pick-up before 21.00 WIB',
-        src: '/images/food-mie-ayam.jpg',
+        src: '/images/food-mie-ayam.png',
     },
     {
         name: 'Nasi Goreng Spesial, Pak Budi',
         dist: '0.6 km', rating: 4.6,
         status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
         pickup: 'Pick-up before 21.00 WIB',
-        src: '/images/food-nasgor.jpg',
+        src: '/images/food-nasgor.png',
     },
     {
         name: 'Ayam Geprek Sambal Bawang',
         dist: '1.3 km', rating: 4.5,
         status: 'Heat & Eat', statusColor: 'bg-[#f59e0b]',
         pickup: 'Pick-up before 20.00 WIB',
-        src: '/images/food-geprek.jpg',
+        src: '/images/food-geprek.png',
     },
 ]
 
@@ -90,28 +90,28 @@ const upcomingClosingItems = [
         dist: '0.6 km', rating: 4.8,
         status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
         pickup: 'Pick-up before 21.00 WIB',
-        src: '/images/food-salmon-bento.jpg',
+        src: '/images/food-salmon-bento.png',
     },
     {
         name: 'Beef Kwetiau Siram, Aheng Seafood',
         dist: '1.1 km', rating: 4.7,
         status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
         pickup: 'Pick-up before 20.30 WIB',
-        src: '/images/food-kwetiau.jpg',
+        src: '/images/food-kwetiau.png',
     },
     {
         name: 'Ayam Geprek Sambal Matah, Geprek Juara',
         dist: '0.8 km', rating: 4.9,
         status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
         pickup: 'Pick-up before 19.00 WIB',
-        src: '/images/food-geprek-matah.jpg',
+        src: '/images/food-geprek-matah.png',
     },
     {
         name: "Lasagna Al Forno'damn, Mie Pasta",
         dist: '2.4 km', rating: 4.9,
         status: 'Ready to Eat', statusColor: 'bg-[#3a7d44]',
         pickup: 'Pick-up before 22.00 WIB',
-        src: '/images/food-lasagna.jpg',
+        src: '/images/food-lasagna.png',
     },
 ]
 // ─────────────────────────────────────────────────────────────────────────────
