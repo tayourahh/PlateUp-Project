@@ -125,7 +125,7 @@ export default function CustomerDashboard() {
     const [recentOrders, setRecentOrders] = useState<PickupOrder[]>([])
     const [ordersLoading, setOrdersLoading] = useState(true)
     const [search, setSearch] = useState('')
-    const [activeMenu, setActiveMenu] = useState('Home')
+    const [activeMenu, setActiveMenu] = useState('My Orders')
     const [notifOpen, setNotifOpen] = useState(false)
 
     useEffect(() => {
