@@ -58,13 +58,13 @@ const banners = [
 ]
 
 const foodCategories = [
-    { label: 'Noodles & Pasta', src: '/images/cat-noodles.jpg' },
-    { label: 'Rice Meals', src: '/images/cat-rice.jpg' },
-    { label: 'Bakery & Pastry', src: '/images/cat-bakery.jpg' },
-    { label: 'Fried Snacks', src: '/images/cat-fried.jpg' },
-    { label: 'Steamed Dimsum', src: '/images/cat-dimsum.jpg' },
-    { label: 'Side Dishes', src: '/images/cat-side.jpg' },
-    { label: 'Traditional Snacks', src: '/images/cat-traditional.jpg' },
+    { label: 'Noodles & Pasta', src: '/images/cat-noodles.png' },
+    { label: 'Rice Meals', src: '/images/cat-rice.png' },
+    { label: 'Bakery & Pastry', src: '/images/cat-bakery.png' },
+    { label: 'Fried Snacks', src: '/images/cat-fried.png' },
+    { label: 'Steamed Dimsum', src: '/images/cat-dimsum.png' },
+    { label: 'Side Dishes', src: '/images/cat-side.png' },
+    { label: 'Traditional Snacks', src: '/images/cat-traditional.png' },
 ]
 
 export default function CustomerDashboard() {
@@ -76,7 +76,7 @@ export default function CustomerDashboard() {
     const [recentOrders, setRecentOrders] = useState<PickupOrder[]>([])
     const [ordersLoading, setOrdersLoading] = useState(true)
     const [search, setSearch] = useState('')
-    const [activeMenu, setActiveMenu] = useState('Home')
+    const [activeMenu, setActiveMenu] = useState('My Orders')
     const [notifOpen, setNotifOpen] = useState(false)
 
     const [forYouItems, setForYouItems] = useState<SurplusProduct[]>([])
