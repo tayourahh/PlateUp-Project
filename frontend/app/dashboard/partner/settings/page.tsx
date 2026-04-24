@@ -29,7 +29,6 @@ const MENU_ITEMS = [
     { label: 'Dashboard', href: '/dashboard/partner', icon: LayoutDashboard },
     { label: 'Manage Surplus', href: '/dashboard/partner/surplus', icon: Package },
     { label: 'Pickup Orders', href: '/dashboard/partner/orders', icon: ClipboardList },
-    { label: 'Analysis', href: '/dashboard/partner/analysis', icon: BarChart2 },
     { label: 'Setting', href: '/dashboard/partner/settings', icon: Settings },
 ]
 
@@ -270,8 +269,8 @@ export default function SettingPage() {
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
                                         className={`pb-3 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
-                                                ? 'text-[#3a7d44] border-b-2 border-[#3a7d44]'
-                                                : 'text-gray-400 hover:text-gray-600'
+                                            ? 'text-[#3a7d44] border-b-2 border-[#3a7d44]'
+                                            : 'text-gray-400 hover:text-gray-600'
                                             }`}
                                     >
                                         {tab.label}

@@ -35,7 +35,6 @@ const MENU_ITEMS = [
     { label: 'Dashboard', href: '/dashboard/partner', icon: LayoutDashboard },
     { label: 'Manage Surplus', href: '/dashboard/partner/surplus', icon: Package },
     { label: 'Pickup Orders', href: '/dashboard/partner/orders', icon: ClipboardList },
-    { label: 'Analysis', href: '/dashboard/partner/analysis', icon: BarChart2 },
     { label: 'Setting', href: '/dashboard/partner/settings', icon: Settings },
 ]
 
