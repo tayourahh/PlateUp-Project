@@ -8,10 +8,10 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 const navLinks = [
-    { label: 'Home', href: '/' },
-    { label: 'Dashboard', href: '/' },
-    { label: 'Impact & Metrics', href: '/' },
-    { label: 'About Us', href: '/' },
+    { label: 'Home', href: '/#home' },
+    { label: 'Dashboard', href: '/dashboard' },
+    { label: 'Impact & Metrics', href: '/#impact' },
+    { label: 'About Us', href: '/#about' },
 ]
 
 export default function Navbar() {

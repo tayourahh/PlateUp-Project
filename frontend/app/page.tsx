@@ -7,26 +7,21 @@ import BackStory from './components/landing/BackStory'
 import MissionsSection from './components/landing/MissionsSection'
 import Footer from './components/landing/Footer'
 import TrustedBy from './components/landing/TrustedBy'
-import Link from 'next/link'
-
-// Ganti button Find Affordable Food jadi:
-<Link
-  href="/register"
-  className="px-6 py-3 bg-[#3a7d44] hover:bg-[#2d6435] text-white
-             text-sm font-medium rounded-full transition-colors"
->
-  Find Affordable Food
-</Link>
-// sections lain menyusul
 
 export default function LandingPage() {
   return (
     <main>
       <Navbar />
-      <HeroSection />
+      <div id="home" className="scroll-mt-28">
+        <HeroSection />
+      </div>
       <TrustedBy />
-      <BackStory />
-      <MissionsSection />
+      <div id="about" className="scroll-mt-28">
+        <BackStory />
+      </div>
+      <div id="impact" className="scroll-mt-28">
+        <MissionsSection />
+      </div>
       <HowItWorks />
       <FAQSection />
       <Footer />

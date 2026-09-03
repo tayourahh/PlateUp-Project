@@ -9,14 +9,15 @@ export default function HeroSection() {
             {/* Kiri: Text Content */}
             <div className="flex-1 flex flex-col gap-6">
                 <h1 className="text-4xl md:text-5xl font-bold text-brand-teal leading-tight">
-                    Smart Solutions for{' '}
-                    <span className="block">Quality Surplus Food.</span>
+                    Every Surplus Meal{' '}
+                    <span className="block">Deserves a Second Chance.</span>
                 </h1>
 
                 <p className="text-brand-dark text-base leading-relaxed max-w-md">
-                    Empowering local culinary businesses to efficiently distribute surplus
-                    food to the student community. Effective, transparent, and making a
-                    real impact on the environment.
+                    Indonesia wastes nearly 48 million tons of food every year, fueling
+                    methane emissions and climate change. PlateUp! turns that surplus into
+                    opportunity — connecting local culinary businesses with students, and
+                    tracking the real environmental impact of every meal saved.
                 </p>
 
                 {/* CTA Buttons */}
