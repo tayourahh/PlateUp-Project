@@ -22,8 +22,12 @@ export default function LandingPage() {
       <div id="impact" className="scroll-mt-28">
         <MissionsSection />
       </div>
-      <HowItWorks />
-      <FAQSection />
+      <div id="how-it-works" className="scroll-mt-28">
+        <HowItWorks />
+      </div>
+      <div id="faq" className="scroll-mt-28">
+        <FAQSection />
+      </div>
       <Footer />
     </main>
   )

@@ -9,9 +9,10 @@ import { useEffect, useState } from 'react'
 
 const navLinks = [
     { label: 'Home', href: '/#home' },
-    { label: 'Dashboard', href: '/dashboard' },
-    { label: 'Impact & Metrics', href: '/#impact' },
-    { label: 'About Us', href: '/#about' },
+    { label: 'Our Story', href: '/#about' },
+    { label: 'Our Missions', href: '/#impact' },
+    { label: 'How It Works', href: '/#how-it-works' },
+    { label: 'FAQ', href: '/#faq' },
 ]
 
 export default function Navbar() {
@@ -68,17 +69,27 @@ export default function Navbar() {
                     ))}
                 </ul>
 
-                {/* Desktop CTA — Get Started atau Logout */}
+                {/* Desktop CTA — Dashboard+Logout atau Get Started */}
                 <div className="hidden md:flex items-center gap-3">
                     {isLoggedIn ? (
-                        <button
-                            onClick={handleLogout}
-                            className="px-5 py-2 text-sm font-medium text-red-500 
-                                       border border-red-200 rounded-full hover:bg-red-50 
-                                       transition-colors"
-                        >
-                            Logout
-                        </button>
+                        <>
+                            <Link
+                                href="/dashboard"
+                                className="px-5 py-2 text-sm font-medium text-brand-teal
+                                           border border-brand-teal rounded-full hover:bg-brand-teal/10
+                                           transition-colors"
+                            >
+                                Dashboard
+                            </Link>
+                            <button
+                                onClick={handleLogout}
+                                className="px-5 py-2 text-sm font-medium text-red-500 
+                                           border border-red-200 rounded-full hover:bg-red-50 
+                                           transition-colors"
+                            >
+                                Logout
+                            </button>
+                        </>
                     ) : (
                         <Link href="/choose-role">
                             <Image
@@ -119,12 +130,21 @@ export default function Navbar() {
                         </Link>
                     ))}
                     {isLoggedIn ? (
-                        <button
-                            onClick={handleLogout}
-                            className="text-sm font-medium text-red-500"
-                        >
-                            Logout
-                        </button>
+                        <>
+                            <Link
+                                href="/dashboard"
+                                className="text-brand-teal hover:text-brand-teal/80 text-sm font-medium transition-colors"
+                                onClick={() => setMenuOpen(false)}
+                            >
+                                Dashboard
+                            </Link>
+                            <button
+                                onClick={handleLogout}
+                                className="text-sm font-medium text-red-500"
+                            >
+                                Logout
+                            </button>
+                        </>
                     ) : (
                         <Button href="/register" variant="lime">
                             Get Started
