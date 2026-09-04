@@ -26,6 +26,13 @@ interface AILoadingState {
     expiry: boolean
     price: boolean
     description: boolean
+    photo: boolean
+}
+
+interface PhotoAnalysis {
+    visual_condition: string
+    notes: string
+    confidence: 'low' | 'medium' | 'high'
 }
 
 const MENU_ITEMS = [
@@ -70,7 +77,9 @@ export default function AddSurplusPage() {
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const [isDragging, setIsDragging] = useState(false)
-    const [aiLoading, setAiLoading] = useState<AILoadingState>({ expiry: false, price: false, description: false })
+    const [aiLoading, setAiLoading] = useState<AILoadingState>({ expiry: false, price: false, description: false, photo: false })
+    const [photoAnalysis, setPhotoAnalysis] = useState<PhotoAnalysis | null>(null)
+    const [photoAnalysisError, setPhotoAnalysisError] = useState<string | null>(null)
     const [catOpen, setCatOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
@@ -109,9 +118,64 @@ export default function AddSurplusPage() {
     const processImage = (file: File) => {
         if (!file.type.startsWith('image/')) { alert('File harus gambar'); return }
         setImageFile(file)
+        setPhotoAnalysis(null)
+        setPhotoAnalysisError(null)
         const reader = new FileReader()
         reader.onloadend = () => setImagePreview(reader.result as string)
         reader.readAsDataURL(file)
+    }
+
+    // Kompres & resize gambar ke max 800px lebar sebelum dikirim ke AI —
+    // foto makanan gak perlu resolusi tinggi buat dianalisis, dan ini
+    // signifikan mengurangi jumlah token yang dipakai per request (jadi
+    // kuota gratis Gemini gak cepat habis).
+    const compressImageForAI = (dataUrl: string): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const img = document.createElement('img')
+            img.onload = () => {
+                const maxWidth = 800
+                const scale = Math.min(1, maxWidth / img.width)
+                const canvas = document.createElement('canvas')
+                canvas.width = img.width * scale
+                canvas.height = img.height * scale
+                const ctx = canvas.getContext('2d')
+                if (!ctx) { reject(new Error('Canvas tidak didukung')); return }
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+                resolve(canvas.toDataURL('image/jpeg', 0.7))
+            }
+            img.onerror = () => reject(new Error('Gagal memuat gambar'))
+            img.src = dataUrl
+        })
+    }
+
+    // ─── Analisis Visual Foto (Gemini Vision) ────────────────────────
+    const handleAnalyzePhoto = async () => {
+        if (!imagePreview) { alert('Upload foto dulu!'); return }
+        setAiLoading(prev => ({ ...prev, photo: true }))
+        setPhotoAnalysis(null)
+        setPhotoAnalysisError(null)
+        try {
+            const compressed = await compressImageForAI(imagePreview)
+            const authHeaders = await getAuthHeader(supabase)
+            const res = await fetch('/api/ai/analyze-photo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...authHeaders },
+                body: JSON.stringify({
+                    image_base64: compressed,
+                    mime_type: 'image/jpeg',
+                    product_name: form.product_name,
+                    category: form.category,
+                })
+            })
+            const result = await res.json()
+            if (!res.ok) throw new Error(result.error || 'Analisis gagal')
+            setPhotoAnalysis(result)
+        } catch (err: any) {
+            console.error(err)
+            setPhotoAnalysisError(err.message || 'AI gagal menganalisis foto. Coba lagi sebentar.')
+        } finally {
+            setAiLoading(prev => ({ ...prev, photo: false }))
+        }
     }
 
     const handleDrop = useCallback((e: React.DragEvent) => {
@@ -384,7 +448,7 @@ export default function AddSurplusPage() {
                                         <div className="relative inline-block">
                                             <img src={imagePreview} alt="Preview" className="max-h-52 mx-auto rounded-xl object-cover shadow-sm" />
                                             <button type="button"
-                                                onClick={e => { e.stopPropagation(); setImagePreview(null); setImageFile(null) }}
+                                                onClick={e => { e.stopPropagation(); setImagePreview(null); setImageFile(null); setPhotoAnalysis(null); setPhotoAnalysisError(null) }}
                                                 className="absolute -top-2 -right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow border border-gray-200 hover:bg-red-50">
                                                 <X size={12} className="text-gray-500" />
                                             </button>
@@ -402,6 +466,45 @@ export default function AddSurplusPage() {
                                     <input ref={fileRef} type="file" accept="image/*" className="hidden"
                                         onChange={e => { if (e.target.files?.[0]) processImage(e.target.files[0]) }} />
                                 </div>
+
+                                {imagePreview && (
+                                    <div className="mt-3">
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleAnalyzePhoto() }}
+                                            disabled={aiLoading.photo}
+                                            className="flex items-center gap-1.5 text-xs font-semibold text-[#3a7d44] disabled:opacity-50 disabled:cursor-not-allowed group">
+                                            <Sparkles size={12} className="group-hover:scale-110 transition-transform" />
+                                            {aiLoading.photo ? 'Menganalisis foto...' : 'Scan with AI'}
+                                        </button>
+
+                                        {photoAnalysis && (
+                                            <div className="mt-2 bg-[#f6fabc]/40 border border-[#c8e84a]/50 rounded-xl px-3.5 py-3 text-left">
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <p className="text-xs font-semibold text-[#666c11]">Hasil Analisis Visual AI</p>
+                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium
+                                                        ${photoAnalysis.confidence === 'high' ? 'bg-[#3a7d44]/15 text-[#3a7d44]' :
+                                                            photoAnalysis.confidence === 'low' ? 'bg-orange-100 text-orange-600' :
+                                                                'bg-gray-100 text-gray-500'}`}>
+                                                        confidence: {photoAnalysis.confidence}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-gray-700">{photoAnalysis.visual_condition}</p>
+                                                {photoAnalysis.notes && (
+                                                    <p className="text-[11px] text-gray-500 mt-1">{photoAnalysis.notes}</p>
+                                                )}
+                                                <p className="text-[10px] text-gray-400 mt-2 italic">
+                                                    Catatan: ini penilaian tampilan visual saja, bukan jaminan keamanan pangan. Tetap gunakan penilaian kamu sendiri.
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {photoAnalysisError && (
+                                            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-red-500">
+                                                <AlertCircle size={12} />
+                                                {photoAnalysisError}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Product Name */}
