@@ -1,0 +1,30 @@
+name: Keep Supabase Alive
+
+# Supabase free-tier projects auto-pause after ~7 days of inactivity.
+# This workflow pings the project every 3 days so it's counted as "active"
+# and never gets paused — including keeping Auth (Google OAuth) working.
+
+on:
+  schedule:
+    - cron: '0 3 */3 * *'   # every 3 days at 03:00 UTC
+  workflow_dispatch:         # lets you trigger it manually from the Actions tab
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+
+          echo "Supabase responded with status: $STATUS"
+
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
+            echo "✅ Ping successful, project is active."
+          else
+            echo "⚠️ Unexpected status code, please check manually."
+            exit 1
+          fi
