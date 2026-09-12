@@ -278,6 +278,28 @@ export default function AddSurplusPage() {
             const { data: { session } } = await supabase.auth.getSession()
             if (!session) throw new Error('Not authenticated')
 
+            // Upload foto ke Supabase Storage dulu (kalau ada) — sebelumnya foto
+            // cuma dipreview tapi gak pernah disimpen, jadi produk selalu tampil
+            // tanpa gambar. Sekarang di-upload dulu, baru URL-nya disimpan bareng produk.
+            let imageUrl: string | null = null
+            if (imageFile) {
+                const filePath = `${session.user.id}/${Date.now()}_${imageFile.name.replace(/\s+/g, '_')}`
+                const { error: uploadError } = await supabase.storage
+                    .from('surplus-images')
+                    .upload(filePath, imageFile, { contentType: imageFile.type, upsert: false })
+
+                if (uploadError) {
+                    console.error('Upload foto gagal (non-fatal):', uploadError)
+                    // Foto gagal upload bukan alasan buat block submit produk —
+                    // produk tetap disimpan, cuma tanpa gambar.
+                } else {
+                    const { data: publicUrlData } = supabase.storage
+                        .from('surplus-images')
+                        .getPublicUrl(filePath)
+                    imageUrl = publicUrlData.publicUrl
+                }
+            }
+
             const expiryDatetime = form.expiry_time ? timeToISO(form.expiry_time) : null
 
             const { error } = await supabase.from('surplus_products').insert({
@@ -290,6 +312,7 @@ export default function AddSurplusPage() {
                 original_price: Number(form.original_price) || 0,
                 plate_up_price: Number(form.plate_up_price) || 0,
                 description: form.description,
+                image_url: imageUrl,
                 quantity: Number(form.quantity) || 1,
                 is_draft: isDraft,
                 status: isDraft ? 'draft' : 'active',
