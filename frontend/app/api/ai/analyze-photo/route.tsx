@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 
 // Model dipilih karena kuota gratis-nya paling tinggi (RPM/RPD) di antara
 // model Gemini yang tersedia — cocok untuk beban demo/portfolio.
-const MODEL = "gemini-2.0-flash-lite";
+const MODEL = "gemini-3.5-flash-lite";
 
 // Dipanggil langsung ke Google AI Studio (bukan lewat OpenRouter), supaya
 // kuota gratisnya dedicated untuk project ini, tidak dibagi user lain.
