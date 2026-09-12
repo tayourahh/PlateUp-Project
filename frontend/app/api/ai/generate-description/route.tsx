@@ -66,6 +66,7 @@ ATURAN KETAT:
 - Kalimat pertama: kondisi/kualitas makanan sekarang
 - Kalimat kedua: nilai/keuntungan beli (harga hemat ATAU batas waktu sebagai urgensi)
 - Jangan gunakan kata: "lezat", "nikmat", "mantap", "yummy", "fresh" (terlalu generik)
+- JANGAN PERNAH gunakan kata yang mengimplikasikan gratis (misal: "cuma-cuma", "gratis", "tanpa bayar") — produk ini TETAP DIJUAL dengan harga diskon, bukan gratis
 - Nada: hangat, jujur, tidak lebay
 - Jangan sebut nama produk lagi di deskripsi (sudah ada di judul)
 
