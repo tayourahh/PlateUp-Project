@@ -3,16 +3,17 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   images: {
+    // Optimasi gambar otomatis Next.js dimatikan — untuk project skala kecil
+    // seperti ini, kompleksitas & potensi error dari image optimizer server-side
+    // tidak sepadan dengan manfaatnya. <Image> akan berlaku seperti <img> biasa.
+    unoptimized: true,
     remotePatterns: [
       {
-        // Foto produk yang di-upload partner disimpan di Supabase Storage
         protocol: 'https',
         hostname: '*.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
       {
-        // Placeholder untuk data demo (boleh dihapus kalau nanti semua
-        // produk sudah pakai foto asli)
         protocol: 'https',
         hostname: 'placehold.co',
       },
