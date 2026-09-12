@@ -39,38 +39,36 @@ PlateUp! is a two-sided marketplace where:
 | Layer | Stack |
 |---|---|
 | Frontend | Next.js (App Router), React, TypeScript, Tailwind CSS |
-| Backend | Python (Flask), JWT auth |
-| Database & Auth | Supabase (Postgres) |
-| AI | Google Gemini API (`@google/genai`) |
-| Deployment | Vercel (frontend), Railway (backend), Supabase (DB) |
+| Database & Auth | Supabase (Postgres, Auth, Storage) |
+| AI | Google Gemini API (`@google/genai`), directly from Next.js API routes |
+| Deployment | Vercel (frontend + API routes), Supabase (DB) |
+| Retired | Python (Flask) backend — originally hosted on Railway; retired after
+finding it wasn't serving any live traffic, see "Post-Competition Iteration"
+below. Kept in `backend/` for reference. |
 
 ## Architecture
 
 ```
-frontend/   → Next.js app (UI, auth flows, AI API routes, dashboards)
-backend/    → Flask API (auth routes, surplus food management)
+frontend/   → Next.js app (UI, auth flows via Supabase, AI API routes, dashboards)
+backend/    → [RETIRED] Flask API, no longer deployed or called in production
 ```
 
 ## Running Locally
 
 ```bash
-# Frontend
 cd frontend
 npm install
 npm run dev
-
-# Backend
-cd backend
-pip install -r requirements.txt
-python run.py
 ```
 
 You'll need your own Supabase project and Google Gemini API key — set the following
 environment variables:
 
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `GOOGLE_GENAI_API_KEY`
-- Backend equivalents for Supabase connection & JWT secret
+- `GEMINI_API_KEY`
+
+> The Flask backend in `backend/` is retired and not required to run the app —
+> see "Post-Competition Iteration" below for why.
 
 ## Competition Context & Lessons Learned
 
@@ -97,7 +95,53 @@ the judges' feedback was genuinely useful:
   general LLM call
 - Validate the UMKM value proposition with real interviews before building
 
+## Post-Competition Iteration
+
+After the competition, I kept iterating on this project as a portfolio piece and
+ran into a few real-world lessons worth documenting:
+
+- **Debugging a "silently degraded" AI feature.** The AI-generated descriptions
+  and expiry/price estimates looked plausible but were noticeably weaker than
+  expected. Tracing it back, I found the Next.js API route was calling a weaker
+  fallback model (`gpt-3.5-turbo`) instead of the Gemini-based path with proper
+  food-safety guardrails — the "better" path only ran when a separate Flask
+  backend was reachable, and that backend had quietly gone offline. The AI
+  never *errored*, it just silently downgraded, which is a harder class of bug
+  to catch than an outright failure.
+- **Discovering unused infrastructure.** Investigating that bug led to a bigger
+  finding: the Flask backend (originally deployed on Railway) wasn't actually
+  serving any live traffic. Every real feature — auth, product CRUD, profile
+  updates — was already calling Supabase directly from the frontend. The
+  backend was dead weight that still required separate hosting, environment
+  variables, and uptime management for zero functional benefit.
+- **Consolidating the architecture.** I retired the Flask backend and moved
+  the AI features (photo condition scan, expiry/price estimation, description
+  generation) into Next.js API routes on Vercel, calling the Gemini API
+  directly. This collapsed the stack from three platforms (Vercel + Railway +
+  Supabase) into two (Vercel + Supabase), removed an entire class of "is my
+  backend still running" failure modes, and made the AI safety guardrails
+  (shelf-life clamping, price bounds, fallback templates) consistent across
+  every AI feature instead of duplicated and drifting apart.
+- **Fixing a silent data bug.** While touring the codebase, I also found that
+  uploaded product photos were previewed in the UI but never actually
+  persisted to storage — the insert into `surplus_products` never included the
+  image. Fixed by uploading to Supabase Storage before the database write.
+
+## Post-Competition Iteration (continued): Keeping infra alive on free tiers
+
+Running this on entirely free infrastructure surfaced a few operational
+lessons too:
+
+- Supabase's free tier pauses projects after ~7 days of inactivity. Fixed with
+  a scheduled GitHub Actions workflow (`.github/workflows/keep-alive.yml`)
+  that pings the project every 3 days.
+- Hosted APIs deprecate models over time — `gemini-2.0-flash-lite` was retired
+  mid-project in favor of `gemini-3.5-flash-lite`, which briefly broke every
+  AI feature at once. A good reminder to not hardcode model names without a
+  fallback/monitoring plan in a real production system.
+
 ## My Role
 
 Built as the developer on a team project — responsible for frontend (Next.js),
-backend (Flask API), database schema (Supabase), and deployment (Vercel + Railway).
+backend (Flask API, later retired), database schema (Supabase), and deployment
+(Vercel; previously Railway for the backend).
