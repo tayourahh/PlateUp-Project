@@ -18,6 +18,21 @@ const statusStyle: Record<string, string> = {
     'Completed': 'bg-[#c8e6c9] text-[#2d6435]',
 }
 
+// NOTE: Real geolocation (partner + customer coordinates, haversine distance)
+// belum diimplementasikan. Ini simplifikasi untuk demo: jarak dihasilkan dari
+// hash ID produk, jadi angkanya konsisten tiap reload (bukan acak tiap render)
+// tapi TIDAK merepresentasikan jarak asli. TODO kalau lanjut development:
+// tambah kolom lat/lng di profiles & surplus_products, pakai geolocation
+// browser di sisi customer, hitung pakai formula haversine.
+function pseudoDistance(id: string): string {
+    let hash = 0
+    for (let i = 0; i < id.length; i++) {
+        hash = (hash * 31 + id.charCodeAt(i)) >>> 0
+    }
+    const km = 0.3 + (hash % 220) / 100 // range ~0.3km - 2.5km
+    return km.toFixed(1)
+}
+
 type PickupOrder = {
     id: string
     product_name: string
@@ -455,7 +470,7 @@ export default function CustomerDashboard() {
                                                     {food.status || 'Ready to Eat'}
                                                 </span>
                                                 <span className="absolute top-2 right-2 text-[10px] text-gray-700 bg-white/90 rounded-full px-2 py-0.5">
-                                                    📍 — km
+                                                    📍 {pseudoDistance(food.id)} km
                                                 </span>
                                             </div>
                                             <div className="p-3">
@@ -501,7 +516,7 @@ export default function CustomerDashboard() {
                                         </div>
                                         <div className="p-3 flex flex-col justify-center">
                                             <p className="text-sm font-medium text-gray-900 line-clamp-2">{food.product_name}</p>
-                                            <p className="text-[11px] text-gray-400 mt-1">📍 — km</p>
+                                            <p className="text-[11px] text-gray-400 mt-1">📍 {pseudoDistance(food.id)} km</p>
                                             <p className="text-[11px] text-gray-400 mt-0.5">Pick-up before {food.production_time || '21.00 WIB'}</p>
                                             <p className="text-[11px] text-[#3a7d44] font-semibold mt-1">
                                                 Rp {Number(food.plate_up_price).toLocaleString('id-ID')}
