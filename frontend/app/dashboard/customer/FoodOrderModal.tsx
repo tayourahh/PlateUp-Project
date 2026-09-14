@@ -50,6 +50,7 @@ export default function FoodOrderModal({ food, onClose, customerId, onOrderSucce
             const { error } = await supabase
                 .from('pickup_orders')
                 .insert({
+                    order_id: crypto.randomUUID(),
                     customer_id: customerId,
                     partner_id: food.partner_id,
                     product_name: food.product_name,
@@ -61,6 +62,18 @@ export default function FoodOrderModal({ food, onClose, customerId, onOrderSucce
                 })
 
             if (error) throw error
+
+            // Kurangi stok produk sesuai jumlah yang dipesan
+            const { error: stockError } = await supabase
+                .from('surplus_products')
+                .update({ quantity: Math.max(0, food.quantity - qty) })
+                .eq('id', food.id)
+
+            if (stockError) {
+                // Order-nya sendiri sudah berhasil dibuat, jadi ini gak perlu
+                // menggagalkan alur order — cukup dicatat untuk debugging.
+                console.error('Gagal update stok (non-fatal):', stockError)
+            }
 
             setSuccess(true)
             setTimeout(() => {
